@@ -12,7 +12,6 @@ from homeassistant.const import (CONF_NAME, CONF_PORT,
   CONF_MONITORED_CONDITIONS, CONF_MODE)
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
-from homeassistant.util import Throttle
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util import Throttle
 
@@ -33,7 +32,7 @@ SENSOR_POWER = 'power'
 SENSOR_ENERGY_TODAY = 'energy_today'
 
 SENSOR_TYPES = {
-    SENSOR_BATTERY: ['Battery', '%', 'mdi:battery'],
+    SENSOR_BATTERY: ['Battery', None, 'mdi:battery'],
     SENSOR_RADIO: ['Radio', 'dBm', 'mdi:signal'],
     SENSOR_POWER: ['Power', 'W', 'mdi:flash'],
     SENSOR_ENERGY_TODAY: ['Energy Today', 'kWh', 'mdi:flash']
@@ -63,8 +62,10 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         dev.append(OwlIntuitionSensor(hass, config, v, data))
     if config.get(CONF_MODE) == MODE_TRI:
         for phase in range(1, 4):
-            dev.append(OwlIntuitionSensor(hass, config, SENSOR_POWER, data, phase))
-            dev.append(OwlIntuitionSensor(hass, config, SENSOR_ENERGY_TODAY, data, phase))
+            dev.append(OwlIntuitionSensor(hass, config,
+                                          SENSOR_POWER, data, phase))
+            dev.append(OwlIntuitionSensor(hass, config,
+                                          SENSOR_ENERGY_TODAY, data, phase))
 
     add_devices(dev, True)
 
@@ -116,7 +117,7 @@ class OwlIntuitionSensor(Entity):
         if xml is None:
             self._state = None
         elif self._sensor_type == SENSOR_BATTERY:
-            # strip off '%'
+            # strip off the '%'
             batt_lvl = int(xml.find("battery").attrib['level'][:-1])
             if batt_lvl > 90:
                 self._state = 'High'
@@ -130,14 +131,20 @@ class OwlIntuitionSensor(Entity):
             self._state = int(xml.find('signal').attrib['rssi'])
         elif self._phase == 0:
             if self._sensor_type == SENSOR_POWER:
-                self._state = float(xml.find('property').find('current').find('watts').text)
+                self._state = int(float(xml.find('property').find('current').
+                                  find('watts').text))
             elif self._sensor_type == SENSOR_ENERGY_TODAY:
-                self._state = round(float(xml.find('property').find('day').find('wh').text)/1000, 2)
+                self._state = round(float(xml.find('property').find('day').
+                                    find('wh').text)/1000, 2)
         else:
             if self._sensor_type == SENSOR_POWER:
-                self._state = float(xml.find('channels').findall('chan')[self._phase-1].find('curr').text)
+                self._state = int(float(xml.find('channels').
+                                  findall('chan')[self._phase-1].
+                                  find('curr').text))
             elif self._sensor_type == SENSOR_ENERGY_TODAY:
-                self._state = round(float(xml.find('channels').findall('chan')[self._phase-1].find('day').text)/1000, 2)
+                self._state = round(float(xml.find('channels').
+                                    findall('chan')[self._phase-1].
+                                    find('day').text)/1000, 2)
 
 
 class OwlIntuitionData(object):
