@@ -114,8 +114,10 @@ class OwlIntuitionSensor(Entity):
         """Retrieve the latest value for this sensor."""
         self._data.update()
         xml = self._data.getXmlData()
-        if xml is None:
-            self._state = None
+        if xml is None or xml.find('property') is None:
+            # no data yet or the update does not contain useful data:
+            # keep the previous state
+            return
         elif self._sensor_type == SENSOR_BATTERY:
             # strip off the '%'
             batt_lvl = int(xml.find("battery").attrib['level'][:-1])
