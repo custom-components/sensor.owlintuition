@@ -4,6 +4,8 @@ Support for OWL Intuition Power Meter.
 For more details about this platform, please refer to the documentation at
 https://home-assistant.io/components/sensor.owlintuition/
 """
+
+import asyncio
 import logging
 import voluptuous as vol
 
@@ -49,11 +51,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         vol.In([MODE_MONO, MODE_TRI])
 })
 
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=55)
+MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=60)
 SOCK_TIMEOUT = 65
 
 
-def setup_platform(hass, config, add_devices, discovery_info=None):
+@asyncio.coroutine
+def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up the OWL Intuition Sensors."""
     data = OwlIntuitionData(config)
 
@@ -67,7 +70,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
             dev.append(OwlIntuitionSensor(hass, config,
                                           SENSOR_ENERGY_TODAY, data, phase))
 
-    add_devices(dev, True)
+    async_add_devices(dev, True)
 
 
 class OwlIntuitionSensor(Entity):
@@ -110,7 +113,8 @@ class OwlIntuitionSensor(Entity):
         """Return the state of the device."""
         return self._state
 
-    def update(self):
+    @asyncio.coroutine
+    def async_update(self):
         """Retrieve the latest value for this sensor."""
         self._data.update()
         xml = self._data.getXmlData()
