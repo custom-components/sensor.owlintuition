@@ -11,7 +11,7 @@ import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (CONF_NAME, CONF_PORT,
-  CONF_MONITORED_CONDITIONS, CONF_MODE)
+  CONF_MONITORED_CONDITIONS, CONF_MODE, CONF_HOST)
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
@@ -48,7 +48,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         vol.All(cv.ensure_list, [vol.In(SENSOR_TYPES)]),
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     vol.Optional(CONF_MODE, default=MODE_MONO):
-        vol.In([MODE_MONO, MODE_TRI])
+        vol.In([MODE_MONO, MODE_TRI]),
+    vol.Optional(CONF_HOST, default='localhost'): cv.string,
 })
 
 MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=60)
@@ -110,7 +111,7 @@ class OwlIntuitionSensor(Entity):
 
     @property
     def state(self):
-        """Return the state of the device."""
+        """Return the current value for this sensor."""
         return self._state
 
     @asyncio.coroutine
@@ -159,6 +160,10 @@ class OwlIntuitionData(object):
     def __init__(self, config):
         """Initialize the data gathering class"""
         self._config = config
+        self._hostname = config.get(CONF_HOST)
+        if self._hostname == 'localhost':
+            # perform a reverse lookup to make sure we listen to the correct IP
+            self._hostname = socket.gethostbyname(socket.getfqdn())
         self._xml = None
 
     def getXmlData(self):
@@ -168,12 +173,11 @@ class OwlIntuitionData(object):
     # Updates are sent every 60 seconds
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def update(self):
-        """Retrieve the latest data by listening to the UDP message"""
+        """Retrieve the latest data by listening to the periodic UDP message"""
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(SOCK_TIMEOUT)
             try:
-                sock.bind((socket.gethostbyname(socket.getfqdn()),
-                           self._config.get(CONF_PORT)))
+                sock.bind((self._hostname, self._config.get(CONF_PORT)))
             except socket.error as err:
                 _LOGGER.error("Unable to bind on port %s: %s",
                               self._config.get(CONF_PORT), err)
