@@ -114,8 +114,7 @@ class OwlIntuitionSensor(Entity):
         """Return the current value for this sensor."""
         return self._state
 
-    @asyncio.coroutine
-    def async_update(self):
+    def update(self):
         """Retrieve the latest value for this sensor."""
         self._data.update()
         xml = self._data.getXmlData()
