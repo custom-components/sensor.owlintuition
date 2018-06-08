@@ -63,13 +63,15 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
 
     dev = []
     for v in config.get(CONF_MONITORED_CONDITIONS):
-        dev.append(OwlIntuitionSensor(hass, config, v, data))
+        dev.append(OwlIntuitionSensor(config, v, data))
     if config.get(CONF_MODE) == MODE_TRI:
         for phase in range(1, 4):
-            dev.append(OwlIntuitionSensor(hass, config,
-                                          SENSOR_POWER, data, phase))
-            dev.append(OwlIntuitionSensor(hass, config,
-                                          SENSOR_ENERGY_TODAY, data, phase))
+            if SENSOR_POWER in config.get(CONF_MONITORED_CONDITIONS):
+                dev.append(OwlIntuitionSensor(config, SENSOR_POWER,
+                                              data, phase))
+            if SENSOR_ENERGY_TODAY in config.get(CONF_MONITORED_CONDITIONS):
+                dev.append(OwlIntuitionSensor(config, SENSOR_ENERGY_TODAY,
+                                              data, phase))
 
     async_add_devices(dev, True)
 
@@ -77,9 +79,8 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
 class OwlIntuitionSensor(Entity):
     """Implementation of the OWL Intuition Power Meter sensors."""
 
-    def __init__(self, hass, config, sensor_type, data, phase=0):
+    def __init__(self, config, sensor_type, data, phase=0):
         """Set all the config values if they exist and get initial state."""
-        self._hass = hass
         self._sensor_type = sensor_type
         self._data = data
         self._phase = phase
