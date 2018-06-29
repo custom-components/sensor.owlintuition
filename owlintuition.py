@@ -52,8 +52,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_HOST, default='localhost'): cv.string,
 })
 
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=60)
-SOCK_TIMEOUT = 65
+MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=57)
+SOCK_TIMEOUT = 60
 
 
 @asyncio.coroutine
