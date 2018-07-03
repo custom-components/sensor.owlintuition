@@ -191,4 +191,11 @@ class OwlIntuitionData(object):
                 return
 
             data, _ = sock.recvfrom(1024)
-            self._xml = ET.fromstring(data)
+            try:
+                # XXX workaround following latest buggy firmware upgrade:
+                # XXX a time tag is ill-formatted as <tariff><time='xxx'/>
+                # XXX as opposed to <tariff time='xxx'>
+                data = data.decode('utf-8').replace('<tariff><', '<tariff ').replace('/><start', '><start')
+                self._xml = ET.fromstring(data)
+            except ET.ParseError as e:
+                _LOGGER.error("Unable to parse data %s: %s" % (data, e))
