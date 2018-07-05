@@ -178,9 +178,9 @@ class OwlIntuitionData(object):
             sock.settimeout(SOCK_TIMEOUT)
             try:
                 sock.bind((self._hostname, self._config.get(CONF_PORT)))
-            except socket.error as err:
+            except socket.error as se:
                 _LOGGER.error("Unable to bind on port %s: %s",
-                              self._config.get(CONF_PORT), err)
+                              self._config.get(CONF_PORT), se)
                 return
 
             readable, _, _ = select.select([sock], [], [], SOCK_TIMEOUT)
@@ -193,5 +193,5 @@ class OwlIntuitionData(object):
             data, _ = sock.recvfrom(1024)
             try:
                 self._xml = ET.fromstring(data.decode('utf-8'))
-            except ET.ParseError as e:
-                _LOGGER.error("Unable to parse data %s: %s" % (data, e))
+            except ET.ParseError as pe:
+                _LOGGER.error("Unable to parse data %s: %s", data, pe)
