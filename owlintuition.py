@@ -54,50 +54,48 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 @asyncio.coroutine
 def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up the OWL Intuition Sensors."""
-    data = OwlIntuitionData()
-
     dev = []
     for v in config.get(CONF_MONITORED_CONDITIONS):
-        dev.append(OwlIntuitionSensor(config, v, data))
+        dev.append(OwlIntuitionSensor(config.get(CONF_NAME), v))
     if config.get(CONF_MODE) == MODE_TRI:
         for phase in range(1, 4):
             if SENSOR_POWER in config.get(CONF_MONITORED_CONDITIONS):
-                dev.append(OwlIntuitionSensor(config, SENSOR_POWER,
-                                              data, phase))
+                dev.append(OwlIntuitionSensor(config.get(CONF_NAME),
+                                              SENSOR_POWER, phase))
             if SENSOR_ENERGY_TODAY in config.get(CONF_MONITORED_CONDITIONS):
-                dev.append(OwlIntuitionSensor(config, SENSOR_ENERGY_TODAY,
-                                              data, phase))
+                dev.append(OwlIntuitionSensor(config.get(CONF_NAME),
+                                              SENSOR_ENERGY_TODAY, phase))
     async_add_devices(dev, True)
 
     _hostname = config.get(CONF_HOST)
     if _hostname == 'localhost':
-        # perform a reverse lookup to make sure we listen to the correct IP
+        # Perform a reverse lookup to make sure we listen to the correct IP
         _hostname = socket.gethostbyname(socket.getfqdn())
-    # create an UDP async listener loop and return it. Credits to @madpilot,
+    # Create a standard UDP async listener loop. Credits to @madpilot,
     # https://community.home-assistant.io/t/async-update-guidelines/51283/2
     owljob = hass.loop.create_datagram_endpoint( \
-        lambda: StateUpdater(hass.loop, data), \
-        local_addr=(_hostname, config.get(CONF_PORT)))
+                lambda: OwlStateUpdater(hass.loop), \
+                local_addr=(_hostname, config.get(CONF_PORT)))
+
     return hass.async_add_job(owljob)
 
 
 class OwlIntuitionSensor(Entity):
     """Implementation of the OWL Intuition Power Meter sensors."""
 
-    def __init__(self, config, sensor_type, data, phase=0):
+    def __init__(self, sensor_name, sensor_type, phase=0):
         """Set all the config values if they exist and get initial state."""
         self._sensor_type = sensor_type
-        self._data = data
         self._phase = phase
         self._state = None
         if(phase > 0):
             self._name = '{} {} P{}'.format(
-                config.get(CONF_NAME),
+                sensor_name,
                 SENSOR_TYPES[sensor_type][0],
                 phase)
         else:
             self._name = '{} {}'.format(
-                config.get(CONF_NAME),
+                sensor_name,
                 SENSOR_TYPES[sensor_type][0])
 
     @property
@@ -122,7 +120,7 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        xml = self._data.getXmlData()
+        xml = OwlStateUpdater.getXmlData()
         if xml is None or xml.find('property') is None:
             # no data yet or the update does not contain useful data:
             # keep the previous state
@@ -158,48 +156,38 @@ class OwlIntuitionSensor(Entity):
                                     find('day').text)/1000, 2)
 
 
-class OwlIntuitionData(object):
-    """Listen to updates via UDP from the OWL Intuition station"""
-
-    def __init__(self):
-        """Initialize the data gathering class"""
-        self._xml = None
-
-    def getXmlData(self):
-        """Return the last retrieved full XML tree"""
-        return self._xml
-
-    def onPacketReceived(self, packet):
-        """Callback when the UDP datagram is received"""
-        try:
-            self._xml = ET.fromstring(packet.decode('utf-8'))
-        except ET.ParseError as pe:
-            _LOGGER.error("Unable to parse received data %s: %s", packet, pe)
-
-
-class StateUpdater(asyncio.DatagramProtocol):
-    """An helper class for the async UDP listener
+class OwlStateUpdater(asyncio.DatagramProtocol):
+    """An helper class for the async UDP listener,
+    including a class-level variable to store the
+    last retrieved OWL XML data.
 
     More info at:
     https://docs.python.org/3/library/asyncio-protocol.html"""
 
-    def __init__(self, loop, data):
-        """Initialisation"""
+    _xml = None
+
+    @classmethod
+    def getXmlData(cls):
+        """Return the last retrieved full XML tree"""
+        return cls._xml
+
+    def __init__(self, loop):
+        """Boiler-plate initialisation"""
         self.loop = loop
-        self.data = data
         self.transport = None
 
     def connection_made(self, transport):
         """Boiler-plate connection made metod"""
         self.transport = transport
 
-    def datagram_received(self, packet, addr):
-        """Pass datagram to the OWL handler"""
-        self.data.onPacketReceived(packet)
-
-    def wait(self, device):
-        """Boiler-plate wait method"""
-        return self.data.wait_for_response(device, self.loop)
+    @classmethod
+    def datagram_received(cls, packet, addr_unused):
+        """Parse the last received datagram"""
+        try:
+            cls._xml = ET.fromstring(packet.decode('utf-8'))
+        except ET.ParseError as pe:
+            _LOGGER.error("Unable to parse received data %s: %s", \
+                          packet, pe)
 
     def cleanup(self):
         """Boiler-plate cleanup method"""
