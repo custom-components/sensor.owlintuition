@@ -11,16 +11,14 @@ import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (CONF_NAME, CONF_PORT,
-  CONF_MONITORED_CONDITIONS, CONF_MODE, CONF_HOST)
+    CONF_MONITORED_CONDITIONS, CONF_MODE, CONF_HOST)
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
-from homeassistant.util import Throttle
 
 from datetime import timedelta
 from xml.etree import ElementTree as ET
 import socket
-import select
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,14 +50,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_HOST, default='localhost'): cv.string,
 })
 
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=57)
-SOCK_TIMEOUT = 60
-
 
 @asyncio.coroutine
 def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up the OWL Intuition Sensors."""
-    data = OwlIntuitionData(config)
+    data = OwlIntuitionData()
 
     dev = []
     for v in config.get(CONF_MONITORED_CONDITIONS):
@@ -72,8 +67,18 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
             if SENSOR_ENERGY_TODAY in config.get(CONF_MONITORED_CONDITIONS):
                 dev.append(OwlIntuitionSensor(config, SENSOR_ENERGY_TODAY,
                                               data, phase))
-
     async_add_devices(dev, True)
+
+    _hostname = config.get(CONF_HOST)
+    if _hostname == 'localhost':
+        # perform a reverse lookup to make sure we listen to the correct IP
+        _hostname = socket.gethostbyname(socket.getfqdn())
+    # create an UDP async listener loop and return it. Credits to @madpilot,
+    # https://community.home-assistant.io/t/async-update-guidelines/51283/2
+    owljob = hass.loop.create_datagram_endpoint( \
+        lambda: StateUpdater(hass.loop, data), \
+        local_addr=(_hostname, config.get(CONF_PORT)))
+    return hass.async_add_job(owljob)
 
 
 class OwlIntuitionSensor(Entity):
@@ -117,7 +122,6 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        self._data.update()
         xml = self._data.getXmlData()
         if xml is None or xml.find('property') is None:
             # no data yet or the update does not contain useful data:
@@ -157,41 +161,48 @@ class OwlIntuitionSensor(Entity):
 class OwlIntuitionData(object):
     """Listen to updates via UDP from the OWL Intuition station"""
 
-    def __init__(self, config):
+    def __init__(self):
         """Initialize the data gathering class"""
-        self._config = config
-        self._hostname = config.get(CONF_HOST)
-        if self._hostname == 'localhost':
-            # perform a reverse lookup to make sure we listen to the correct IP
-            self._hostname = socket.gethostbyname(socket.getfqdn())
         self._xml = None
 
     def getXmlData(self):
         """Return the last retrieved full XML tree"""
         return self._xml
 
-    # Updates are sent every 60 seconds
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    def update(self):
-        """Retrieve the latest data by listening to the periodic UDP message"""
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.settimeout(SOCK_TIMEOUT)
-            try:
-                sock.bind((self._hostname, self._config.get(CONF_PORT)))
-            except socket.error as se:
-                _LOGGER.error("Unable to bind on port %s: %s",
-                              self._config.get(CONF_PORT), se)
-                return
+    def onPacketReceived(self, packet):
+        """Callback when the UDP datagram is received"""
+        try:
+            self._xml = ET.fromstring(packet.decode('utf-8'))
+        except ET.ParseError as pe:
+            _LOGGER.error("Unable to parse received data %s: %s", packet, pe)
 
-            readable, _, _ = select.select([sock], [], [], SOCK_TIMEOUT)
-            if not readable:
-                _LOGGER.warning(
-                    "Timeout (%s second(s)) waiting for data on port %s.",
-                    SOCK_TIMEOUT, self._config.get(CONF_PORT))
-                return
 
-            data, _ = sock.recvfrom(1024)
-            try:
-                self._xml = ET.fromstring(data.decode('utf-8'))
-            except ET.ParseError as pe:
-                _LOGGER.error("Unable to parse data %s: %s", data, pe)
+class StateUpdater(asyncio.DatagramProtocol):
+    """An helper class for the async UDP listener
+
+    More info at:
+    https://docs.python.org/3/library/asyncio-protocol.html"""
+
+    def __init__(self, loop, data):
+        """Initialisation"""
+        self.loop = loop
+        self.data = data
+        self.transport = None
+
+    def connection_made(self, transport):
+        """Boiler-plate connection made metod"""
+        self.transport = transport
+
+    def datagram_received(self, packet, addr):
+        """Pass datagram to the OWL handler"""
+        self.data.onPacketReceived(packet)
+
+    def wait(self, device):
+        """Boiler-plate wait method"""
+        return self.data.wait_for_response(device, self.loop)
+
+    def cleanup(self):
+        """Boiler-plate cleanup method"""
+        if self.transport:
+            self.transport.close()
+            self.transport = None
