@@ -42,12 +42,12 @@ DEFAULT_MONITORED = [SENSOR_BATTERY, SENSOR_POWER, SENSOR_ENERGY_TODAY]
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_PORT): cv.port,
-    vol.Optional(CONF_MONITORED_CONDITIONS, default=DEFAULT_MONITORED):
-        vol.All(cv.ensure_list, [vol.In(SENSOR_TYPES)]),
+    vol.Optional(CONF_HOST, default='localhost'): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     vol.Optional(CONF_MODE, default=MODE_MONO):
         vol.In([MODE_MONO, MODE_TRI]),
-    vol.Optional(CONF_HOST, default='localhost'): cv.string,
+    vol.Optional(CONF_MONITORED_CONDITIONS, default=DEFAULT_MONITORED):
+        vol.All(cv.ensure_list, [vol.In(SENSOR_TYPES)]),
 })
 
 
