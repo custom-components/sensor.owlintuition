@@ -31,11 +31,13 @@ SENSOR_RADIO = 'radio'
 SENSOR_POWER = 'power'
 SENSOR_ENERGY_TODAY = 'energy_today'
 
+OWL_CLASSES = ['electricity']
+
 SENSOR_TYPES = {
-    SENSOR_BATTERY: ['Battery', None, 'mdi:battery'],
-    SENSOR_RADIO: ['Radio', 'dBm', 'mdi:signal'],
-    SENSOR_POWER: ['Power', 'W', 'mdi:flash'],
-    SENSOR_ENERGY_TODAY: ['Energy Today', 'kWh', 'mdi:flash']
+    SENSOR_BATTERY: ['Battery', None, 'mdi:battery', 'electricity'],
+    SENSOR_RADIO: ['Radio', 'dBm', 'mdi:signal', 'electricity'],
+    SENSOR_POWER: ['Power', 'W', 'mdi:flash', 'electricity'],
+    SENSOR_ENERGY_TODAY: ['Energy Today', 'kWh', 'mdi:flash', 'electricity'],
 }
 
 DEFAULT_MONITORED = [SENSOR_BATTERY, SENSOR_POWER, SENSOR_ENERGY_TODAY]
@@ -87,6 +89,7 @@ class OwlIntuitionSensor(Entity):
         """Set all the config values if they exist and get initial state."""
         self._sensor_type = sensor_type
         self._phase = phase
+        self._owl_class = SENSOR_TYPES[sensor_type][3]
         self._state = None
         if(phase > 0):
             self._name = '{} {} P{}'.format(
@@ -120,7 +123,7 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        xml = OwlStateUpdater.getXmlData()
+        xml = OwlStateUpdater.getXmlData(self._owl_class)
         if xml is None or xml.find('property') is None:
             # no data yet or the update does not contain useful data:
             # keep the previous state
@@ -138,19 +141,19 @@ class OwlIntuitionSensor(Entity):
                 self._state = 'Very Low'
         elif self._sensor_type == SENSOR_RADIO:
             self._state = int(xml.find('signal').attrib['rssi'])
-        elif self._phase == 0:
-            if self._sensor_type == SENSOR_POWER:
+        elif self._sensor_type == SENSOR_POWER:
+            if self._phase == 0:
                 self._state = int(float(xml.find('property').find('current').
                                   find('watts').text))
-            elif self._sensor_type == SENSOR_ENERGY_TODAY:
-                self._state = round(float(xml.find('property').find('day').
-                                    find('wh').text)/1000, 2)
-        else:
-            if self._sensor_type == SENSOR_POWER:
+            else:
                 self._state = int(float(xml.find('channels').
                                   findall('chan')[self._phase-1].
                                   find('curr').text))
-            elif self._sensor_type == SENSOR_ENERGY_TODAY:
+        elif self._sensor_type == SENSOR_ENERGY_TODAY:
+            if self._phase == 0:
+                self._state = round(float(xml.find('property').find('day').
+                                    find('wh').text)/1000, 2)
+            else:
                 self._state = round(float(xml.find('channels').
                                     findall('chan')[self._phase-1].
                                     find('day').text)/1000, 2)
@@ -164,12 +167,15 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
     More info at:
     https://docs.python.org/3/library/asyncio-protocol.html"""
 
-    _xml = None
+    _xml = {}
 
     @classmethod
-    def getXmlData(cls):
-        """Return the last retrieved full XML tree"""
-        return cls._xml
+    def getXmlData(cls, owl_class):
+        """Return the last retrieved XML tree for the given sensor class"""
+        try:
+            return cls._xml[owl_class]
+        except KeyError:
+            return None
 
     def __init__(self, loop):
         """Boiler-plate initialisation"""
@@ -184,7 +190,12 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
     def datagram_received(cls, packet, addr_unused):
         """Parse the last received datagram"""
         try:
-            cls._xml = ET.fromstring(packet.decode('utf-8'))
+            root = ET.fromstring(packet.decode('utf-8'))
+            if root.tag in OWL_CLASSES:
+                cls._xml[root.tag] = root
+            else:
+                _LOGGER.warning("Unsupported type '%s' in data: %s", \
+                                root.tag, packet)
         except ET.ParseError as pe:
             _LOGGER.error("Unable to parse received data %s: %s", \
                           packet, pe)
