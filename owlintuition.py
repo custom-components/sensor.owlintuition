@@ -30,14 +30,22 @@ SENSOR_BATTERY = 'battery'
 SENSOR_RADIO = 'radio'
 SENSOR_POWER = 'power'
 SENSOR_ENERGY_TODAY = 'energy_today'
+SENSOR_SOLAR_GPOWER = 'solargen'
+SENSOR_SOLAR_GENERGY_TODAY = 'solargen_today'
+SENSOR_SOLAR_EPOWER = 'solarexp'
+SENSOR_SOLAR_EENERGY_TODAY = 'solarexp_today'
 
-OWL_CLASSES = ['electricity']
+OWL_CLASSES = ['electricity', 'solar']
 
 SENSOR_TYPES = {
     SENSOR_BATTERY: ['Battery', None, 'mdi:battery', 'electricity'],
     SENSOR_RADIO: ['Radio', 'dBm', 'mdi:signal', 'electricity'],
     SENSOR_POWER: ['Power', 'W', 'mdi:flash', 'electricity'],
     SENSOR_ENERGY_TODAY: ['Energy Today', 'kWh', 'mdi:flash', 'electricity'],
+    SENSOR_SOLAR_GPOWER: ['Solar Generating', 'W', 'mdi:flash', 'solar'],
+    SENSOR_SOLAR_GENERGY_TODAY: ['Solar Generated Today', 'kWh', 'mdi:flash', 'solar'],
+    SENSOR_SOLAR_EPOWER: ['Solar Exporting', 'W', 'mdi:flash', 'solar'],
+    SENSOR_SOLAR_EENERGY_TODAY: ['Solar Exported Today', 'kWh', 'mdi:flash', 'solar'],
 }
 
 DEFAULT_MONITORED = [SENSOR_BATTERY, SENSOR_POWER, SENSOR_ENERGY_TODAY]
@@ -128,7 +136,8 @@ class OwlIntuitionSensor(Entity):
             # no data yet or the update does not contain useful data:
             # keep the previous state
             return
-        elif self._sensor_type == SENSOR_BATTERY:
+        # Electricity sensors
+        if self._sensor_type == SENSOR_BATTERY:
             # strip off the '%'
             batt_lvl = int(xml.find("battery").attrib['level'][:-1])
             if batt_lvl > 90:
@@ -157,6 +166,19 @@ class OwlIntuitionSensor(Entity):
                 self._state = round(float(xml.find('channels').
                                     findall('chan')[self._phase-1].
                                     find('day').text)/1000, 2)
+        # Solar sensors
+        elif self._sensor_type == SENSOR_SOLAR_GPOWER:
+            self._state = int(float(xml.find('current').
+                              find('generating').text))
+        elif self._sensor_type == SENSOR_SOLAR_EPOWER:
+            self._state = int(float(xml.find('current').
+                              find('exporting').text))
+        elif self._sensor_type == SENSOR_SOLAR_GENERGY_TODAY:
+            self._state = round(float(xml.find('day').
+                                find('generated').text)/1000, 2)
+        elif self._sensor_type == SENSOR_SOLAR_EENERGY_TODAY:
+            self._state = round(float(xml.find('day').
+                                find('exported').text)/1000, 2)
 
 
 class OwlStateUpdater(asyncio.DatagramProtocol):
