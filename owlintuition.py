@@ -77,15 +77,15 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                                               SENSOR_ENERGY_TODAY, phase))
     async_add_devices(dev, True)
 
-    _hostname = config.get(CONF_HOST)
-    if _hostname == 'localhost':
+    hostname = config.get(CONF_HOST)
+    if hostname == 'localhost':
         # Perform a reverse lookup to make sure we listen to the correct IP
-        _hostname = socket.gethostbyname(socket.getfqdn())
+        hostname = socket.gethostbyname(socket.getfqdn())
     # Create a standard UDP async listener loop. Credits to @madpilot,
     # https://community.home-assistant.io/t/async-update-guidelines/51283/2
     owljob = hass.loop.create_datagram_endpoint( \
-                lambda: OwlStateUpdater(hass.loop), \
-                local_addr=(_hostname, config.get(CONF_PORT)))
+                lambda: OwlStateUpdater(), \
+                local_addr=(hostname, config.get(CONF_PORT)))
 
     return hass.async_add_job(owljob)
 
@@ -131,10 +131,9 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        xml = OwlStateUpdater.getXmlData(self._owl_class)
-        if xml is None or xml.find('property') is None:
-            # no data yet or the update does not contain useful data:
-            # keep the previous state
+        xml = OwlStateUpdater.get_xml_data(self._owl_class)
+        if xml is None:
+            # no data yet: keep the previous state
             return
         # Electricity sensors
         if self._sensor_type == SENSOR_BATTERY:
@@ -189,19 +188,20 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
     More info at:
     https://docs.python.org/3/library/asyncio-protocol.html"""
 
+    """Dictionary of the parsed XML data for each supported sensor class,
+    where the classes are the element of OWL_CLASSES"""
     _xml = {}
 
     @classmethod
-    def getXmlData(cls, owl_class):
+    def get_xml_data(cls, owl_class):
         """Return the last retrieved XML tree for the given sensor class"""
         try:
             return cls._xml[owl_class]
         except KeyError:
             return None
 
-    def __init__(self, loop):
+    def __init__(self):
         """Boiler-plate initialisation"""
-        self.loop = loop
         self.transport = None
 
     def connection_made(self, transport):
