@@ -19,7 +19,7 @@ import homeassistant.helpers.config_validation as cv
 
 from datetime import timedelta
 from xml.etree import ElementTree as ET
-from threading import Lock
+from threading import Lock, ThreadError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -208,13 +208,17 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
     @classmethod
     def get_and_lock_data(cls, owl_class):
         """Lock and return the retrieved data for the given sensor class"""
-        cls._lock.acquire()
-        return cls._xml.get(owl_class)
+        if cls._lock.acquire(False):
+            return cls._xml.get(owl_class)
+        return None
 
     @classmethod
     def release_data(cls):
         """Release the lock for the data access"""
-        cls._lock.release()
+        try:
+            cls._lock.release()
+        except ThreadError as ignored:
+            pass
 
     def connection_made(self, transport):
         """Boiler-plate connection made metod"""
