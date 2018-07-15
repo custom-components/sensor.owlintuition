@@ -6,6 +6,7 @@ https://home-assistant.io/components/sensor.owlintuition/
 """
 
 import asyncio
+import socket
 import logging
 import voluptuous as vol
 
@@ -18,7 +19,7 @@ import homeassistant.helpers.config_validation as cv
 
 from datetime import timedelta
 from xml.etree import ElementTree as ET
-import socket
+from threading import Lock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ SENSOR_SOLAR_GENERGY_TODAY = 'solargen_today'
 SENSOR_SOLAR_EPOWER = 'solarexp'
 SENSOR_SOLAR_EENERGY_TODAY = 'solarexp_today'
 
-OWL_CLASSES = ['electricity', 'solar']
+OWL_CLASSES = ['weather', 'electricity', 'solar']
 
 SENSOR_TYPES = {
     SENSOR_BATTERY: ['Battery', None, 'mdi:battery', 'electricity'],
@@ -84,7 +85,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     # Create a standard UDP async listener loop. Credits to @madpilot,
     # https://community.home-assistant.io/t/async-update-guidelines/51283/2
     owljob = hass.loop.create_datagram_endpoint( \
-                lambda: OwlStateUpdater(), \
+                OwlStateUpdater, \
                 local_addr=(hostname, config.get(CONF_PORT)))
 
     return hass.async_add_job(owljob)
@@ -131,10 +132,17 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        xml = OwlStateUpdater.get_xml_data(self._owl_class)
-        if xml is None:
-            # no data yet: keep the previous state
-            return
+        try:
+            xml = OwlStateUpdater.get_and_lock_data(self._owl_class)
+            if xml is None:
+                # no data yet: keep the previous state
+                return
+            self._update(xml)
+        finally:
+            OwlStateUpdater.release_data()
+
+    def _update(self, xml):
+        """Internal method to extract the appropriate data for this sensor"""
         # Electricity sensors
         if self._sensor_type == SENSOR_BATTERY:
             # strip off the '%'
@@ -181,28 +189,32 @@ class OwlIntuitionSensor(Entity):
 
 
 class OwlStateUpdater(asyncio.DatagramProtocol):
-    """An helper class for the async UDP listener,
-    including a class-level variable to store the
-    last retrieved OWL XML data.
+    """An helper class for the async UDP listener loop.
+
+    Includes a class-level variable to store the last
+    retrieved OWL XML data for the supported sensor classes.
 
     More info at:
     https://docs.python.org/3/library/asyncio-protocol.html"""
 
-    """Dictionary of the parsed XML data for each supported sensor class,
+    """Dictionary of the parsed XML data for each supported class,
     where the classes are the element of OWL_CLASSES"""
     _xml = {}
 
-    @classmethod
-    def get_xml_data(cls, owl_class):
-        """Return the last retrieved XML tree for the given sensor class"""
-        try:
-            return cls._xml[owl_class]
-        except KeyError:
-            return None
+    """Lock to protect access to the _xml dictionary. Without it,
+    HA randomly crashes..."""
+    _lock = Lock()
 
-    def __init__(self):
-        """Boiler-plate initialisation"""
-        self.transport = None
+    @classmethod
+    def get_and_lock_data(cls, owl_class):
+        """Lock and return the retrieved data for the given sensor class"""
+        cls._lock.acquire()
+        return cls._xml.get(owl_class)
+
+    @classmethod
+    def release_data(cls):
+        """Release the lock for the data access"""
+        cls._lock.release()
 
     def connection_made(self, transport):
         """Boiler-plate connection made metod"""
@@ -210,17 +222,23 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
 
     @classmethod
     def datagram_received(cls, packet, addr_unused):
-        """Parse the last received datagram"""
+        """Parse the last received datagram and store the result"""
         try:
             root = ET.fromstring(packet.decode('utf-8'))
             if root.tag in OWL_CLASSES:
+                cls._lock.acquire()
                 cls._xml[root.tag] = root
+                cls._lock.release()
             else:
                 _LOGGER.warning("Unsupported type '%s' in data: %s", \
                                 root.tag, packet)
         except ET.ParseError as pe:
             _LOGGER.error("Unable to parse received data %s: %s", \
                           packet, pe)
+
+    def error_received(self, exc):
+        """Boiler-plate error received method"""
+        _LOGGER.error("Received error %s", exc)
 
     def cleanup(self):
         """Boiler-plate cleanup method"""
