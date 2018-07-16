@@ -132,11 +132,11 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
+        xml = OwlStateUpdater.get_and_lock_data(self._owl_class)
+        if xml is None:
+            # no data yet or update in progress: keep the previous state
+            return
         try:
-            xml = OwlStateUpdater.get_and_lock_data(self._owl_class)
-            if xml is None:
-                # no data yet: keep the previous state
-                return
             self._update(xml)
         finally:
             OwlStateUpdater.release_data()
@@ -208,8 +208,8 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
     @classmethod
     def get_and_lock_data(cls, owl_class):
         """Lock and return the retrieved data for the given sensor class"""
-        if cls._lock.acquire(False):
-            return cls._xml.get(owl_class)
+        if owl_class in cls._xml and cls._lock.acquire(False):
+            return cls._xml[owl_class]
         return None
 
     @classmethod
