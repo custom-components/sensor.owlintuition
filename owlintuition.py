@@ -17,10 +17,6 @@ from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 
-from datetime import timedelta
-from xml.etree import ElementTree as ET
-from threading import Lock, ThreadError
-
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = 'OWL Meter'
@@ -131,17 +127,20 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        xml = OwlStateUpdater.get_and_lock_data(self._owl_class)
-        if xml is None:
-            # no data yet or update in progress: keep the previous state
-            return
+        # The XML parsing is all contained here. Despite the extra cost of
+        # re-parsing the same data by multiple sensors, this approach
+        # is simpler than maintaining a central dictionary of parsed XML
+        # trees, because the latter requires proper locking (with a
+        # RW lock) to prevent crashing the interpreter (!).
+        from xml.etree import ElementTree as ET
         try:
-            self._update(xml)
-        finally:
-            OwlStateUpdater.release_data()
-
-    def _update(self, xml):
-        """Internal method to extract the appropriate data for this sensor"""
+            xml = ET.fromstring(OwlStateUpdater.getdata(self._owl_class))
+        except TypeError:
+            # No data received yet
+            return
+        except ET.ParseError as pe:
+            _LOGGER.error("Unable to parse received data: %s", pe)
+            return
         # Electricity sensors
         if self._sensor_type == SENSOR_BATTERY:
             # strip off the '%'
@@ -196,28 +195,15 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
     More info at:
     https://docs.python.org/3/library/asyncio-protocol.html"""
 
-    """Dictionary of the parsed XML data for each supported class,
-    where the classes are the element of OWL_CLASSES"""
+    """Dictionary of the XML data for each supported class,
+    that is any element of OWL_CLASSES"""
     _xml = {}
 
-    """Lock to protect access to the _xml dictionary. Without it,
-    HA randomly crashes..."""
-    _lock = Lock()
-
     @classmethod
-    def get_and_lock_data(cls, owl_class):
-        """Lock and return the retrieved data for the given sensor class"""
-        if owl_class in cls._xml and cls._lock.acquire(False):
-            return cls._xml[owl_class]
-        return None
+    def getdata(cls, owl_class):
+        """Return the retrieved data for the given sensor class"""
+        return cls._xml.get(owl_class)
 
-    @classmethod
-    def release_data(cls):
-        """Release the lock for the data access"""
-        try:
-            cls._lock.release()
-        except ThreadError as ignored:
-            pass
     def __init__(self):
         """Boiler-plate init"""
         self.transport = None
@@ -228,19 +214,14 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
 
     @classmethod
     def datagram_received(cls, packet, addr_unused):
-        """Parse the last received datagram and store the result"""
-        try:
-            root = ET.fromstring(packet.decode('utf-8'))
-            if root.tag in OWL_CLASSES:
-                cls._lock.acquire()
-                cls._xml[root.tag] = root
-                cls._lock.release()
-            else:
-                _LOGGER.warning("Unsupported type '%s' in data: %s", \
-                                root.tag, packet)
-        except ET.ParseError as pe:
-            _LOGGER.error("Unable to parse received data %s: %s", \
-                          packet, pe)
+        """Get the last received datagram and store it if relevant"""
+        xmldata = packet.decode('utf-8')
+        root = xmldata[1:xmldata.find(' ')]
+        if root in OWL_CLASSES:
+            cls._xml[root] = xmldata
+        else:
+            _LOGGER.warning("Unsupported type '%s' in data: %s", \
+                            root, packet)
 
     def error_received(self, exc):
         """Boiler-plate error received method"""
