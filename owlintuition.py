@@ -84,9 +84,8 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
         hostname = socket.gethostbyname(socket.getfqdn())
     # Create a standard UDP async listener loop. Credits to @madpilot,
     # https://community.home-assistant.io/t/async-update-guidelines/51283/2
-    owljob = hass.loop.create_datagram_endpoint( \
-                OwlStateUpdater, \
-                local_addr=(hostname, config.get(CONF_PORT)))
+    owljob = hass.loop.create_datagram_endpoint(OwlStateUpdater, \
+                 local_addr=(hostname, config.get(CONF_PORT)))
 
     return hass.async_add_job(owljob)
 
@@ -96,10 +95,6 @@ class OwlIntuitionSensor(Entity):
 
     def __init__(self, sensor_name, sensor_type, phase=0):
         """Set all the config values if they exist and get initial state."""
-        self._sensor_type = sensor_type
-        self._phase = phase
-        self._owl_class = SENSOR_TYPES[sensor_type][3]
-        self._state = None
         if(phase > 0):
             self._name = '{} {} P{}'.format(
                 sensor_name,
@@ -109,6 +104,10 @@ class OwlIntuitionSensor(Entity):
             self._name = '{} {}'.format(
                 sensor_name,
                 SENSOR_TYPES[sensor_type][0])
+        self._sensor_type = sensor_type
+        self._phase = phase
+        self._owl_class = SENSOR_TYPES[sensor_type][3]
+        self._state = None
 
     @property
     def name(self):
@@ -219,6 +218,9 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
             cls._lock.release()
         except ThreadError as ignored:
             pass
+    def __init__(self):
+        """Boiler-plate init"""
+        self.transport = None
 
     def connection_made(self, transport):
         """Boiler-plate connection made metod"""
@@ -243,9 +245,12 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
     def error_received(self, exc):
         """Boiler-plate error received method"""
         _LOGGER.error("Received error %s", exc)
+        self.cleanup()
 
     def cleanup(self):
         """Boiler-plate cleanup method"""
-        if self.transport:
-            self.transport.close()
+        try:
+            if self.transport:
+                self.transport.close()
+        finally:
             self.transport = None
