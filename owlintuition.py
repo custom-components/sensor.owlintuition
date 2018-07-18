@@ -7,6 +7,7 @@ https://home-assistant.io/components/sensor.owlintuition/
 
 import asyncio
 import socket
+from xml.etree import ElementTree as ET
 import logging
 import voluptuous as vol
 
@@ -57,7 +58,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         vol.All(cv.ensure_list, [vol.In(SENSOR_TYPES)]),
 })
 
-
 @asyncio.coroutine
 def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up the OWL Intuition Sensors."""
@@ -80,10 +80,40 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
         hostname = socket.gethostbyname(socket.getfqdn())
     # Create a standard UDP async listener loop. Credits to @madpilot,
     # https://community.home-assistant.io/t/async-update-guidelines/51283/2
-    owljob = hass.loop.create_datagram_endpoint(OwlStateUpdater, \
+    owljob = hass.loop.create_datagram_endpoint(
+                 lambda: OwlStateUpdater(hass.loop), \
                  local_addr=(hostname, config.get(CONF_PORT)))
 
     return hass.async_add_job(owljob)
+
+
+class OwlData:
+    """A mini wrapper around a dictionary with a callback method
+
+    The callback method is used by the event loop in a thread-safe way
+    when new data is received. Directly manipulating the dictionary
+    from the Updater class is not thread-safe and causes the python
+    interpreter to crash!
+    """
+
+    def __init__(self):
+        """Prepare an empty dictionary"""
+        self.data = {}
+
+    def on_data_received(self, xmldata):
+        """Callback when new data is received: store it in the dict"""
+        try:
+            xml = ET.fromstring(xmldata)
+            self.data[xml.tag] = xml
+        except ET.ParseError as pe:
+            _LOGGER.error("Unable to parse received data: %s", pe)
+
+    def get(self, owlclass):
+        """Facade for the internal dictionary's get method"""
+        return self.data.get(owlclass)
+
+"""Singleton-like instance of the OWL data dictionary"""
+owldata = OwlData()
 
 
 class OwlIntuitionSensor(Entity):
@@ -127,19 +157,8 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        # The XML parsing is all contained here. Despite the extra cost of
-        # re-parsing the same data by multiple sensors, this approach
-        # is simpler than maintaining a central dictionary of parsed XML
-        # trees, because the latter requires proper locking (with a
-        # RW lock) to prevent crashing the interpreter (!).
-        from xml.etree import ElementTree as ET
-        try:
-            xml = ET.fromstring(OwlStateUpdater.getdata(self._owl_class))
-        except TypeError:
-            # No data received yet
-            return
-        except ET.ParseError as pe:
-            _LOGGER.error("Unable to parse received data: %s", pe)
+        xml = owldata.get(self._owl_class)
+        if xml is None:
             return
         # Electricity sensors
         if self._sensor_type == SENSOR_BATTERY:
@@ -189,36 +208,28 @@ class OwlIntuitionSensor(Entity):
 class OwlStateUpdater(asyncio.DatagramProtocol):
     """An helper class for the async UDP listener loop.
 
-    Includes a class-level variable to store the last
-    retrieved OWL XML data for the supported sensor classes.
-
     More info at:
     https://docs.python.org/3/library/asyncio-protocol.html"""
 
-    """Dictionary of the XML data for each supported class,
-    that is any element of OWL_CLASSES"""
-    _xml = {}
-
-    @classmethod
-    def getdata(cls, owl_class):
-        """Return the retrieved data for the given sensor class"""
-        return cls._xml.get(owl_class)
-
-    def __init__(self):
-        """Boiler-plate init"""
+    def __init__(self, eloop):
+        """Boiler-plate initialisation"""
+        self.eloop = eloop
         self.transport = None
 
     def connection_made(self, transport):
         """Boiler-plate connection made metod"""
         self.transport = transport
 
-    @classmethod
-    def datagram_received(cls, packet, addr_unused):
-        """Get the last received datagram and store it if relevant"""
+    def datagram_received(self, packet, addr_unused):
+        """Get the last received datagram and notify the
+        OwlData singleton for storing it if relevant"""
         xmldata = packet.decode('utf-8')
         root = xmldata[1:xmldata.find(' ')]
         if root in OWL_CLASSES:
-            cls._xml[root] = xmldata
+            # do not call here that method, but instead leave
+            # the event loop do it when convenient AND thread-safe!
+            self.eloop.call_soon_threadsafe(
+                owldata.on_data_received, xmldata)
         else:
             _LOGGER.warning("Unsupported type '%s' in data: %s", \
                             root, packet)
@@ -226,12 +237,9 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
     def error_received(self, exc):
         """Boiler-plate error received method"""
         _LOGGER.error("Received error %s", exc)
-        self.cleanup()
 
     def cleanup(self):
         """Boiler-plate cleanup method"""
-        try:
-            if self.transport:
-                self.transport.close()
-        finally:
-            self.transport = None
+        if self.transport:
+            self.transport.close()
+        self.transport = None
