@@ -2,12 +2,13 @@
 Support for OWL Intuition Power Meter.
 
 For more details about this platform, please refer to the documentation at
-https://home-assistant.io/components/sensor.owlintuition/
+https://github.com/glpatcern/domotica/blob/master/homeass/code/sensor.owlintuition.markdown
 """
 
 import asyncio
 import socket
 from xml.etree import ElementTree as ET
+
 import logging
 import voluptuous as vol
 
@@ -17,6 +18,7 @@ from homeassistant.const import (CONF_NAME, CONF_PORT,
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
+
 
 _LOGGER = logging.getLogger(__name__)
 
