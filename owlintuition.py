@@ -83,8 +83,9 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     owljob = hass.loop.create_datagram_endpoint(
                  lambda: OwlStateUpdater(hass.loop), \
                  local_addr=(hostname, config.get(CONF_PORT)))
+    hass.async_add_job(owljob)
 
-    return hass.async_add_job(owljob)
+    return True
 
 
 class OwlData:
