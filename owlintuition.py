@@ -8,6 +8,8 @@ https://github.com/glpatcern/domotica/blob/master/homeass/code/sensor.owlintuiti
 import asyncio
 import socket
 from xml.etree import ElementTree as ET
+from datetime import timedelta
+from select import select
 
 import logging
 import voluptuous as vol
@@ -18,6 +20,7 @@ from homeassistant.const import (CONF_NAME, CONF_PORT,
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
+from homeassistant.util import Throttle
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,48 +63,74 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         vol.All(cv.ensure_list, [vol.In(SENSOR_TYPES)]),
 })
 
+MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=57)
+SOCK_TIMEOUT = 60
+
+
 @asyncio.coroutine
 def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up the OWL Intuition Sensors."""
-    dev = []
-    for v in config.get(CONF_MONITORED_CONDITIONS):
-        dev.append(OwlIntuitionSensor(config.get(CONF_NAME), v))
-    if config.get(CONF_MODE) == MODE_TRI:
-        for phase in range(1, 4):
-            if SENSOR_POWER in config.get(CONF_MONITORED_CONDITIONS):
-                dev.append(OwlIntuitionSensor(config.get(CONF_NAME),
-                                              SENSOR_POWER, phase))
-            if SENSOR_ENERGY_TODAY in config.get(CONF_MONITORED_CONDITIONS):
-                dev.append(OwlIntuitionSensor(config.get(CONF_NAME),
-                                              SENSOR_ENERGY_TODAY, phase))
-    async_add_devices(dev, True)
-
     hostname = config.get(CONF_HOST)
     if hostname == 'localhost':
         # Perform a reverse lookup to make sure we listen to the correct IP
         hostname = socket.gethostbyname(socket.getfqdn())
-    # Create a standard UDP async listener loop. Credits to @madpilot,
-    # https://community.home-assistant.io/t/async-update-guidelines/51283/2
-    owljob = hass.loop.create_datagram_endpoint(
-                 lambda: OwlStateUpdater(hass.loop), \
-                 local_addr=(hostname, config.get(CONF_PORT)))
-    hass.async_add_job(owljob)
+    owldata = OwlData((hostname, config.get(CONF_PORT)))
 
-    return True
+    # Ideally an async listener loop as follows would be a better solution,
+    # but it crashes HA!
+    #owljob = hass.loop.create_datagram_endpoint(
+    #             lambda: OwlStateUpdater(hass.loop), \
+    #             local_addr=(hostname, config.get(CONF_PORT)))
+    #hass.async_add_job(owljob)
+
+    dev = []
+    for v in config.get(CONF_MONITORED_CONDITIONS):
+        dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME), v))
+    if config.get(CONF_MODE) == MODE_TRI:
+        for phase in range(1, 4):
+            if SENSOR_POWER in config.get(CONF_MONITORED_CONDITIONS):
+                dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME),
+                                              SENSOR_POWER, phase))
+            if SENSOR_ENERGY_TODAY in config.get(CONF_MONITORED_CONDITIONS):
+                dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME),
+                                              SENSOR_ENERGY_TODAY, phase))
+    async_add_devices(dev, True)
 
 
 class OwlData:
-    """A mini wrapper around a dictionary with a callback method
+    """A class to retrieve data from the OWL station via UDP.
 
-    The callback method is used by the event loop in a thread-safe way
-    when new data is received. Directly manipulating the dictionary
-    from the Updater class is not thread-safe and causes the python
-    interpreter to crash!
+    The callback method can be used by an event loop in a thread-safe way
+    when new data is received. However, async loops crash HA!
+    The update() method is instead fully synchronous.
     """
 
-    def __init__(self):
+    def __init__(self, localaddr):
         """Prepare an empty dictionary"""
         self.data = {}
+        self._localaddr = localaddr
+
+    # Updates are sent every 60 seconds
+    @Throttle(MIN_TIME_BETWEEN_UPDATES)
+    def update(self):
+        """Retrieve the latest data by listening to the periodic UDP message"""
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(SOCK_TIMEOUT)
+            try:
+                sock.bind(self._localaddr)
+            except socket.error as se:
+                _LOGGER.error("Unable to bind: %s", se)
+                return
+
+            readable, _, _ = select([sock], [], [], SOCK_TIMEOUT)
+            if not readable:
+                _LOGGER.warning(
+                    "Timeout (%s second(s)) waiting for data on port %s.",
+                    SOCK_TIMEOUT, self._config.get(CONF_PORT))
+                return
+
+            data, _ = sock.recvfrom(1024)
+            self.on_data_received(data.decode('utf-8'))
 
     def on_data_received(self, xmldata):
         """Callback when new data is received: store it in the dict"""
@@ -115,15 +144,13 @@ class OwlData:
         """Facade for the internal dictionary's get method"""
         return self.data.get(owlclass)
 
-"""Singleton-like instance of the OWL data dictionary"""
-owldata = OwlData()
-
 
 class OwlIntuitionSensor(Entity):
     """Implementation of the OWL Intuition Power Meter sensors."""
 
-    def __init__(self, sensor_name, sensor_type, phase=0):
+    def __init__(self, owldata, sensor_name, sensor_type, phase=0):
         """Set all the config values if they exist and get initial state."""
+        self._owldata = owldata
         if(phase > 0):
             self._name = '{} {} P{}'.format(
                 sensor_name,
@@ -160,7 +187,8 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        xml = owldata.get(self._owl_class)
+        self._owldata.update()
+        xml = self._owldata.get(self._owl_class)
         if xml is None:
             return
         # Electricity sensors
