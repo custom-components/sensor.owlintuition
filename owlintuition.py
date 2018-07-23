@@ -10,6 +10,7 @@ import socket
 from xml.etree import ElementTree as ET
 from datetime import timedelta
 from select import select
+from functools import reduce
 
 import logging
 import voluptuous as vol
@@ -63,7 +64,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         vol.All(cv.ensure_list, [vol.In(SENSOR_TYPES)]),
 })
 
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=57)
 SOCK_TIMEOUT = 60
 
 
@@ -74,7 +74,13 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     if hostname == 'localhost':
         # Perform a reverse lookup to make sure we listen to the correct IP
         hostname = socket.gethostbyname(socket.getfqdn())
-    owldata = OwlData((hostname, config.get(CONF_PORT)))
+    # Try and estimate an appropriate refresh interval: if only the electricity
+    # module is present, 60 seconds is OK, otherwise double the rate.
+    # All of this won't be needed with an async listener...
+    nbclasses = len(reduce(lambda c, s: c | {SENSOR_TYPES[s][3]}, \
+                           config.get(CONF_MONITORED_CONDITIONS), set()))
+    owldata = OwlData((hostname, config.get(CONF_PORT)), \
+                      timedelta(seconds=(60/nbclasses - 2)))
 
     # Ideally an async listener loop as follows would be a better solution,
     # but it crashes HA!
@@ -105,14 +111,14 @@ class OwlData:
     The update() method is instead fully synchronous.
     """
 
-    def __init__(self, localaddr):
+    def __init__(self, localaddr, refreshinterval):
         """Prepare an empty dictionary"""
         self.data = {}
         self._localaddr = localaddr
+        # Updates are sent every 60 seconds by each module
+        self.update = Throttle(refreshinterval)(self._update)
 
-    # Updates are sent every 60 seconds
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    def update(self):
+    def _update(self):
         """Retrieve the latest data by listening to the periodic UDP message"""
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(SOCK_TIMEOUT)
