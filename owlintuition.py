@@ -197,49 +197,59 @@ class OwlIntuitionSensor(Entity):
         xml = self._owldata.get(self._owl_class)
         if xml is None:
             return
-        # Electricity sensors
-        if self._sensor_type == SENSOR_BATTERY:
-            # strip off the '%'
-            batt_lvl = int(xml.find("battery").attrib['level'][:-1])
-            if batt_lvl > 90:
-                self._state = 'High'
-            elif batt_lvl > 30:
-                self._state = 'Medium'
-            elif batt_lvl > 10:
-                self._state = 'Low'
-            else:
-                self._state = 'Very Low'
-        elif self._sensor_type == SENSOR_RADIO:
-            self._state = int(xml.find('signal').attrib['rssi'])
-        elif self._sensor_type == SENSOR_POWER:
-            if self._phase == 0:
-                self._state = int(float(xml.find('property').find('current').
-                                  find('watts').text))
-            else:
-                self._state = int(float(xml.find('channels').
-                                  findall('chan')[self._phase-1].
-                                  find('curr').text))
-        elif self._sensor_type == SENSOR_ENERGY_TODAY:
-            if self._phase == 0:
-                self._state = round(float(xml.find('property').find('day').
-                                    find('wh').text)/1000, 2)
-            else:
-                self._state = round(float(xml.find('channels').
-                                    findall('chan')[self._phase-1].
-                                    find('day').text)/1000, 2)
-        # Solar sensors
-        elif self._sensor_type == SENSOR_SOLAR_GPOWER:
-            self._state = int(float(xml.find('current').
-                              find('generating').text))
-        elif self._sensor_type == SENSOR_SOLAR_EPOWER:
-            self._state = int(float(xml.find('current').
-                              find('exporting').text))
-        elif self._sensor_type == SENSOR_SOLAR_GENERGY_TODAY:
-            self._state = round(float(xml.find('day').
-                                find('generated').text)/1000, 2)
-        elif self._sensor_type == SENSOR_SOLAR_EENERGY_TODAY:
-            self._state = round(float(xml.find('day').
-                                find('exported').text)/1000, 2)
+        # Check what version the Network OWL is multicasting
+        xml_ver = xml.attrib.get('ver')
+        
+        if xml.tag == 'electricity':
+            # Electricity sensors
+            if self._sensor_type == SENSOR_BATTERY:
+               # strip off the '%'
+                batt_lvl = int(xml.find("battery").attrib['level'][:-1])
+                if batt_lvl > 90:
+                    self._state = 'High'
+                elif batt_lvl > 30:
+                    self._state = 'Medium'
+               elif batt_lvl > 10:
+                    self._state = 'Low'
+                else:
+                    self._state = 'Very Low'
+            elif self._sensor_type == SENSOR_RADIO:
+                self._state = int(xml.find('signal').attrib['rssi'])
+            elif self._sensor_type == SENSOR_POWER:
+                if self._phase == 0:
+                    if xml_ver == '2.0':
+                        self._state = int(float(xml.find('property').find('current').
+                                      find('watts').text))
+                    else:
+                        self._state = int(float(xml.find('chan/curr').text))
+                else:
+                    self._state = int(float(xml.find('channels').
+                                      findall('chan')[self._phase-1].
+                                      find('curr').text))
+            elif self._sensor_type == SENSOR_ENERGY_TODAY:
+                if self._phase == 0:
+                    if xml_ver == '2.0':
+                        self._state = round(float(xml.find('property').find('day').
+                                        find('wh').text)/1000, 2)
+                    else:
+                        self._state = int(float(xml.find('chan/day').text))/1000,2)   
+             else:
+                    self._state = round(float(xml.find('channels').
+                                        findall('chan')[self._phase-1].
+                                        find('day').text)/1000, 2)
+            # Solar sensors
+            elif self._sensor_type == SENSOR_SOLAR_GPOWER:
+                self._state = int(float(xml.find('current').
+                                  find('generating').text))
+            elif self._sensor_type == SENSOR_SOLAR_EPOWER:
+                self._state = int(float(xml.find('current').
+                                  find('exporting').text))
+            elif self._sensor_type == SENSOR_SOLAR_GENERGY_TODAY:
+                self._state = round(float(xml.find('day').
+                                    find('generated').text)/1000, 2)
+            elif self._sensor_type == SENSOR_SOLAR_EENERGY_TODAY:
+                self._state = round(float(xml.find('day').
+                                    find('exported').text)/1000, 2)
 
 
 class OwlStateUpdater(asyncio.DatagramProtocol):
