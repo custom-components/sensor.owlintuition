@@ -132,7 +132,7 @@ class OwlData:
             if not readable:
                 _LOGGER.warning(
                     "Timeout (%s second(s)) waiting for data on port %s.",
-                    SOCK_TIMEOUT, self._config.get(CONF_PORT))
+                    SOCK_TIMEOUT, self._localaddr[1])
                 return
 
             data, _ = sock.recvfrom(1024)
@@ -209,7 +209,7 @@ class OwlIntuitionSensor(Entity):
                     self._state = 'High'
                 elif batt_lvl > 30:
                     self._state = 'Medium'
-               elif batt_lvl > 10:
+                elif batt_lvl > 10:
                     self._state = 'Low'
                 else:
                     self._state = 'Very Low'
@@ -219,37 +219,46 @@ class OwlIntuitionSensor(Entity):
                 if self._phase == 0:
                     if xml_ver == '2.0':
                         self._state = int(float(xml.find('property').find('current').
-                                      find('watts').text))
+                                                    find('watts').text))
                     else:
                         self._state = int(float(xml.find('chan/curr').text))
                 else:
-                    self._state = int(float(xml.find('channels').
-                                      findall('chan')[self._phase-1].
-                                      find('curr').text))
+                    if xml_ver == '2.0':
+                        self._state = int(float(xml.find('channels').
+                                                    findall('chan')[self._phase-1].
+                                                    find('curr').text))
+                    else:
+                        # not supported
+                        self._state = int(float(xml.find('chan/curr').text))
             elif self._sensor_type == SENSOR_ENERGY_TODAY:
                 if self._phase == 0:
                     if xml_ver == '2.0':
                         self._state = round(float(xml.find('property').find('day').
-                                        find('wh').text)/1000, 2)
+                                                      find('wh').text)/1000, 2)
                     else:
-                        self._state = int(float(xml.find('chan/day').text))/1000,2)   
-             else:
-                    self._state = round(float(xml.find('channels').
-                                        findall('chan')[self._phase-1].
-                                        find('day').text)/1000, 2)
+                        self._state = int(float(xml.find('chan/day').text)/1000, 2)
+                else:
+                    if xml_ver == '2.0':
+                        self._state = round(float(xml.find('channels').
+                                                      findall('chan')[self._phase-1].
+                                                      find('day').text)/1000, 2)
+                    else:
+                        # not supported
+                        self._state = int(float(xml.find('chan/day').text)/1000, 2)
+
             # Solar sensors
             elif self._sensor_type == SENSOR_SOLAR_GPOWER:
                 self._state = int(float(xml.find('current').
-                                  find('generating').text))
+                                            find('generating').text))
             elif self._sensor_type == SENSOR_SOLAR_EPOWER:
                 self._state = int(float(xml.find('current').
-                                  find('exporting').text))
+                                            find('exporting').text))
             elif self._sensor_type == SENSOR_SOLAR_GENERGY_TODAY:
                 self._state = round(float(xml.find('day').
-                                    find('generated').text)/1000, 2)
+                                              find('generated').text)/1000, 2)
             elif self._sensor_type == SENSOR_SOLAR_EENERGY_TODAY:
                 self._state = round(float(xml.find('day').
-                                    find('exported').text)/1000, 2)
+                                              find('exported').text)/1000, 2)
 
 
 class OwlStateUpdater(asyncio.DatagramProtocol):
