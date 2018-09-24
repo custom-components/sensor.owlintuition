@@ -1,6 +1,5 @@
 """
 Support for OWL Intuition Power Meter.
-
 For more details about this platform, please refer to the documentation at
 https://github.com/glpatcern/domotica/blob/master/homeass/code/sensor.owlintuition.markdown
 """
@@ -38,8 +37,32 @@ SENSOR_SOLAR_GPOWER = 'solargen'
 SENSOR_SOLAR_GENERGY_TODAY = 'solargen_today'
 SENSOR_SOLAR_EPOWER = 'solarexp'
 SENSOR_SOLAR_EENERGY_TODAY = 'solarexp_today'
+SENSOR_HOTWATER_CURRENT = 'hotwater_current'
+SENSOR_HOTWATER_REQUIRED = 'hotwater_required'
+SENSOR_HOTWATER_AMBIENT = 'hotwater_ambient'
+SENSOR_HOTWATER_STATE = 'hotwater_state'
+SENSOR_HEATING_CURRENT = 'heating_current'
+SENSOR_HEATING_REQUIRED = 'heating_required'
+SENSOR_HEATING_STATE = 'heating_state'
 
-OWL_CLASSES = ['weather', 'electricity', 'solar']
+OWL_CLASSES = ['weather', 'electricity', 'solar', 'hot_water', 'heating', 'relays']
+
+HEATING_STATE = [   'Standby',                      # 0
+                    'Comfort (Runing)',             # 1
+                    '',                             # 2
+                    '',                             # 3
+                    'Comfort (Up To Temperature)',  # 4
+                    'Comfort (Warm Up)',            # 5
+                    'Comfort (Cool Down)',          # 6
+                    'Standby (Running)']            # 7
+HOTWATER_STATE = [  'Standby',                      # 0
+                    'Running',                      # 1
+                    '',                             # 2
+                    '',                             # 3
+                    'Up To Temperature',            # 4
+                    'Warm Up',                      # 5
+                    'Cool Down',                    # 6
+                    'Standby (Running)' ]           # 7
 
 SENSOR_TYPES = {
     SENSOR_BATTERY: ['Battery', None, 'mdi:battery', 'electricity'],
@@ -50,9 +73,18 @@ SENSOR_TYPES = {
     SENSOR_SOLAR_GENERGY_TODAY: ['Solar Generated Today', 'kWh', 'mdi:flash', 'solar'],
     SENSOR_SOLAR_EPOWER: ['Solar Exporting', 'W', 'mdi:flash', 'solar'],
     SENSOR_SOLAR_EENERGY_TODAY: ['Solar Exported Today', 'kWh', 'mdi:flash', 'solar'],
+    SENSOR_HOTWATER_CURRENT: ['Hotwater Temperature', '°C', 'mdi:thermometer', 'hot_water'],
+    SENSOR_HOTWATER_REQUIRED: ['Hotwater Required', '°C', 'mdi:thermostat', 'hot_water'],
+    SENSOR_HOTWATER_AMBIENT: ['Hotwater Ambient', '°C', 'mdi:thermometer', 'hot_water'],
+    SENSOR_HOTWATER_STATE: ['Hotwater State', '', 'mdi:information-outline', 'hot_water'],
+    SENSOR_HEATING_CURRENT: ['Heating Temperature', '°C', 'mdi:thermometer', 'heating'],
+    SENSOR_HEATING_REQUIRED: ['Heating Required', '°C', 'mdi:thermostat', 'heating'],
+    SENSOR_HEATING_STATE: ['Heating State', '', 'mdi:information-outline', 'heating'],
 }
 
-DEFAULT_MONITORED = [SENSOR_BATTERY, SENSOR_POWER, SENSOR_ENERGY_TODAY]
+DEFAULT_MONITORED = [SENSOR_BATTERY, SENSOR_POWER, SENSOR_ENERGY_TODAY,
+SENSOR_HOTWATER_CURRENT,SENSOR_HOTWATER_REQUIRED,SENSOR_HOTWATER_STATE,
+SENSOR_HEATING_CURRENT,SENSOR_HEATING_REQUIRED,SENSOR_HEATING_STATE]
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_PORT): cv.port,
@@ -77,10 +109,13 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     # Try and estimate an appropriate refresh interval: if only the electricity
     # module is present, 60 seconds is OK, otherwise double the rate.
     # All of this won't be needed with an async listener...
+    # 
     nbclasses = len(reduce(lambda c, s: c | {SENSOR_TYPES[s][3]}, \
                            config.get(CONF_MONITORED_CONDITIONS), set()))
+    secs = (60/nbclasses - 2)
+    secs = 20
     owldata = OwlData((hostname, config.get(CONF_PORT)), \
-                      timedelta(seconds=(60/nbclasses - 2)))
+                      timedelta(seconds=(secs)))
 
     # Ideally an async listener loop as follows would be a better solution,
     # but it crashes HA!
@@ -105,7 +140,6 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
 
 class OwlData:
     """A class to retrieve data from the OWL station via UDP.
-
     The callback method can be used by an event loop in a thread-safe way
     when new data is received. However, async loops crash HA!
     The update() method is instead fully synchronous.
@@ -143,6 +177,8 @@ class OwlData:
         try:
             xml = ET.fromstring(xmldata)
             self.data[xml.tag] = xml
+            _LOGGER.error("Packet received type %s",xml.tag)
+
         except ET.ParseError as pe:
             _LOGGER.error("Unable to parse received data: %s", pe)
 
@@ -197,64 +233,81 @@ class OwlIntuitionSensor(Entity):
         xml = self._owldata.get(self._owl_class)
         if xml is None:
             return
-        # Check what version the Network OWL is multicasting
         xml_ver = xml.attrib.get('ver')
-        
-        if xml.tag == 'electricity':
-            # Electricity sensors
-            if self._sensor_type == SENSOR_BATTERY:
-               # strip off the '%'
-                batt_lvl = int(xml.find("battery").attrib['level'][:-1])
-                if batt_lvl > 90:
-                    self._state = 'High'
-                elif batt_lvl > 30:
-                    self._state = 'Medium'
-               elif batt_lvl > 10:
-                    self._state = 'Low'
+
+        # Electricity sensors
+        if self._sensor_type == SENSOR_BATTERY:
+            # strip off the '%'
+            batt_lvl = int(xml.find("battery").attrib['level'][:-1])
+            if batt_lvl > 90:
+                self._state = 'High'
+            elif batt_lvl > 30:
+                self._state = 'Medium'
+            elif batt_lvl > 10:
+                self._state = 'Low'
+            else:
+                self._state = 'Very Low'
+        elif self._sensor_type == SENSOR_RADIO:
+            self._state = int(xml.find('signal').attrib['rssi'])
+        elif self._sensor_type == SENSOR_POWER:
+            if self._phase == 0:
+                # xml_ver undefined for older version
+                if xml_ver is None:
+                    self._state = int(float(xml.find('chan/curr').text))
                 else:
-                    self._state = 'Very Low'
-            elif self._sensor_type == SENSOR_RADIO:
-                self._state = int(xml.find('signal').attrib['rssi'])
-            elif self._sensor_type == SENSOR_POWER:
-                if self._phase == 0:
-                    if xml_ver == '2.0':
-                        self._state = int(float(xml.find('property').find('current').
-                                      find('watts').text))
-                    else:
-                        self._state = int(float(xml.find('chan/curr').text))
-                else:
-                    self._state = int(float(xml.find('channels').
+                    self._state = int(float(xml.find('property/current/watts').text))
+            else:
+                # Older xml format not handled yet for tri-phase
+                self._state = int(float(xml.find('channels').
                                       findall('chan')[self._phase-1].
                                       find('curr').text))
-            elif self._sensor_type == SENSOR_ENERGY_TODAY:
-                if self._phase == 0:
-                    if xml_ver == '2.0':
-                        self._state = round(float(xml.find('property').find('day').
-                                        find('wh').text)/1000, 2)
-                    else:
-                        self._state = int(float(xml.find('chan/day').text))/1000,2)   
-             else:
-                    self._state = round(float(xml.find('channels').
+        elif self._sensor_type == SENSOR_ENERGY_TODAY:
+            if self._phase == 0:
+                # xml_ver undefined for older version
+                if xml_ver is None:
+                    self._state = round(float(xml.find('chan/day').text)/1000,2)
+                else:
+                    self._state = round(float(xml.find('property/day/wh').text)/1000, 2)
+            else:
+                # Older xml format not handled yet for tri-phase
+                self._state = round(float(xml.find('channels').
                                         findall('chan')[self._phase-1].
                                         find('day').text)/1000, 2)
-            # Solar sensors
-            elif self._sensor_type == SENSOR_SOLAR_GPOWER:
-                self._state = int(float(xml.find('current').
-                                  find('generating').text))
-            elif self._sensor_type == SENSOR_SOLAR_EPOWER:
-                self._state = int(float(xml.find('current').
-                                  find('exporting').text))
-            elif self._sensor_type == SENSOR_SOLAR_GENERGY_TODAY:
-                self._state = round(float(xml.find('day').
-                                    find('generated').text)/1000, 2)
-            elif self._sensor_type == SENSOR_SOLAR_EENERGY_TODAY:
-                self._state = round(float(xml.find('day').
-                                    find('exported').text)/1000, 2)
+        # Solar sensors
+        elif self._sensor_type == SENSOR_SOLAR_GPOWER:
+            self._state = int(float(xml.find('current/generating').text))
+        elif self._sensor_type == SENSOR_SOLAR_EPOWER:
+            self._state = int(float(xml.find('current/exporting').text))
+        elif self._sensor_type == SENSOR_SOLAR_GENERGY_TODAY:
+            self._state = round(float(xml.find('day/generated').text)/1000, 2)
+        elif self._sensor_type == SENSOR_SOLAR_EENERGY_TODAY:
+            self._state = round(float(xml.find('day/exported').text)/1000, 2)
 
+        if (xml.tag == 'heating' or xml.tag == 'hot_water'):        
+            # Only supports 1 zone currently
+            xml = xml.find('zones/zone')
+	  		
+            if self._sensor_type == SENSOR_HOTWATER_CURRENT:
+                self._state = round(float(xml.find('temperature/current').text),1)
+            elif self._sensor_type == SENSOR_HOTWATER_REQUIRED:
+                self._state = float(xml.find('temperature/required').text)
+            elif self._sensor_type == SENSOR_HOTWATER_AMBIENT:
+                self._state = float(xml.find('temperature/ambient').text)
+            elif self._sensor_type == SENSOR_HOTWATER_STATE:
+                # Heating state reported in version 2 and up
+                if xml_ver is not None:
+                    self._state = HOTWATER_STATE[int(xml.find('temperature').attrib['state'])]
+            elif self._sensor_type == SENSOR_HEATING_CURRENT:
+                self._state = round(float(xml.find('temperature/current').text),1)
+            elif self._sensor_type == SENSOR_HEATING_REQUIRED:
+                self._state = float(xml.find('temperature/required').text)
+            elif self._sensor_type == SENSOR_HEATING_STATE:
+                # Heating state reported in version 2 and up
+                if xml_ver is not None:
+                    self._state = HEATING_STATE[int(xml.find('temperature').attrib['state'])]
 
 class OwlStateUpdater(asyncio.DatagramProtocol):
     """An helper class for the async UDP listener loop.
-
     More info at:
     https://docs.python.org/3/library/asyncio-protocol.html"""
 
@@ -272,6 +325,9 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
         OwlData singleton for storing it if relevant"""
         xmldata = packet.decode('utf-8')
         root = xmldata[1:xmldata.find(' ')]
+        
+        _LOGGER.error("Packet received type %s",root.tag)
+        
         if root in OWL_CLASSES:
             # do not call here that method, but instead leave
             # the event loop do it when convenient AND thread-safe!
