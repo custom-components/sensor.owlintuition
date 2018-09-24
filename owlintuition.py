@@ -326,7 +326,7 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
         xmldata = packet.decode('utf-8')
         root = xmldata[1:xmldata.find(' ')]
         
-        _LOGGER.error("Packet received type %s",root.tag)
+        _LOGGER.debug("Packet received type %s",root.tag)
         
         if root in OWL_CLASSES:
             # do not call here that method, but instead leave
