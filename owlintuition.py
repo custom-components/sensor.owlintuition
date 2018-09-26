@@ -195,7 +195,7 @@ class OwlData:
             if not readable:
                 _LOGGER.warning(
                     "Timeout (%s second(s)) waiting for data on port %s.",
-                    SOCK_TIMEOUT, self._config.get(CONF_PORT))
+                    SOCK_TIMEOUT, self._localaddr[1])
                 return
 
             data, _ = sock.recvfrom(1024)
@@ -307,8 +307,8 @@ class OwlIntuitionSensor(Entity):
             else:
                 # TODO: Older xml format not handled yet for tri-phase
                 self._state = int(float(xml.find('channels').
-                                      findall('chan')[self._phase-1].
-                                      find('curr').text))
+                                            findall('chan')[self._phase-1].
+                                            find('curr').text))
         elif self._sensor_type == SENSOR_ELECTRICITY_ENERGY_TODAY:
             if self._phase == 0:
                 # xml_ver undefined for older version
@@ -319,8 +319,8 @@ class OwlIntuitionSensor(Entity):
             else:
                 # TODO: Older xml format not handled yet for tri-phase
                 self._state = round(float(xml.find('channels').
-                                        findall('chan')[self._phase-1].
-                                        find('day').text)/1000, 2)
+                                              findall('chan')[self._phase-1].
+                                              find('day').text)/1000, 2)
         # Solar sensors
         elif self._sensor_type == SENSOR_SOLAR_GPOWER:
             self._state = int(float(xml.find('current/generating').text))
