@@ -3,8 +3,8 @@
       "updated_at": "2018-09-27",
       "version": "0.1.0",
       "local_location": "/custom_components/sensor/owlintuition.py",
-      "remote_location": "https://raw.githubusercontent.com/custom-components/camera.combined/master/custom_components/camera/combined.py",
-      "visit_repo": "https://github.com/custom-components/camera.combined",
+      "remote_location": "https://raw.githubusercontent.com/jchasey/domotica/master/homeass/code/owlintuition.py",
+      "visit_repo": "https://github.com/jchasey/domotica",
       "changelog": "https://github.com/custom-components/camera.combined/releases/latest"
     }
 }
