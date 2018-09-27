@@ -1,5 +1,5 @@
 {
-    "camera.combined": {
+    "sensor.owl_intuition": {
       "updated_at": "2018-09-27",
       "version": "0.1.0",
       "local_location": "/custom_components/sensor/owlintuition.py",
