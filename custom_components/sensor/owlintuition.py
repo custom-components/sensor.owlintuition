@@ -28,10 +28,10 @@ DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
 
-SENSOR_ELECTRICITY_BATTERY = 'battery'
-SENSOR_ELECTRICITY_RADIO = 'radio'
-SENSOR_ELECTRICITY_POWER = 'power'
-SENSOR_ELECTRICITY_ENERGY_TODAY = 'energy_today'
+SENSOR_ELECTRICITY_BATTERY = 'electricity_battery'
+SENSOR_ELECTRICITY_RADIO = 'electricity_radio'
+SENSOR_ELECTRICITY_POWER = 'electricity_power'
+SENSOR_ELECTRICITY_ENERGY_TODAY = 'electricity_energy_today'
 SENSOR_SOLAR_GPOWER = 'solargen'
 SENSOR_SOLAR_GENERGY_TODAY = 'solargen_today'
 SENSOR_SOLAR_EPOWER = 'solarexp'
@@ -127,16 +127,14 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     if hostname == 'localhost':
         # Perform a reverse lookup to make sure we listen to the correct IP
         hostname = socket.gethostbyname(socket.getfqdn())
-    # Try and estimate an appropriate refresh interval: if only the electricity
-    # module is present, 60 seconds is OK, otherwise double the rate.
+
+    # Try and estimate an appropriate refresh interval, assuming each module
+    # is refreshed every 60 seconds.
     # All of this won't be needed with an async listener...
-    # 
-    # Need to reconsider this with new number of sensors? Set to 20 secs?
-    #
-    #nbclasses = len(reduce(lambda c, s: c | {SENSOR_TYPES[s][3]}, \
-    #                       config.get(CONF_MONITORED_CONDITIONS), set()))
-    #secs = (60/nbclasses - 2)
-    secs = 20
+    try:
+        secs = 60/len(config.get(CONF_MONITORED_CONDITIONS))
+    except ZeroDivisionError:
+        secs = 60
     owldata = OwlData((hostname, config.get(CONF_PORT)), \
                       timedelta(seconds=(secs)))
 
@@ -154,16 +152,14 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
             dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME), sensor))
             _LOGGER.debug("Adding sensor %s",sensor)
     
-    # Handle 3 phase sensors
-    if config.get(CONF_MODE) == MODE_TRI:
-        if OWLCLASS_ELECTRICITY in config.get(CONF_MONITORED_CONDITIONS):
-            for phase in range(1, 4):
-                dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME),
-                                              SENSOR_ELECTRICITY_POWER, phase))
-        if OWLCLASS_SOLAR in config.get(CONF_MONITORED_CONDITIONS):
-            for phase in range(1, 4):
-                dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME),
-                                              SENSOR_SOLAR_EENERGY_TODAY, phase))
+    # Handle triphase sensors (only for electricity sensors for now)
+    if config.get(CONF_MODE) == MODE_TRI and \
+       OWLCLASS_ELECTRICITY in config.get(CONF_MONITORED_CONDITIONS):
+        for phase in range(1, 4):
+            dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME),
+                                          SENSOR_ELECTRICITY_POWER, phase))
+            dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME),
+                                          SENSOR_ELECTRICITY_ENERGY_TODAY, phase))
     async_add_devices(dev, True)
 
 
@@ -178,7 +174,6 @@ class OwlData:
         """Prepare an empty dictionary"""
         self.data = {}
         self._localaddr = localaddr
-        # Updates are sent every 60 seconds by each module
         self.update = Throttle(refreshinterval)(self._update)
 
     def _update(self):
