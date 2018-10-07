@@ -59,11 +59,20 @@ OWLCLASS_HOTWATER = 'hot_water'
 OWLCLASS_HEATING = 'heating'
 OWLCLASS_RELAYS = 'relays'
 
-OWL_CLASSES = [ OWLCLASS_WEATHER, OWLCLASS_ELECTRICITY, OWLCLASS_SOLAR,
-                OWLCLASS_HOTWATER, OWLCLASS_HEATING, OWLCLASS_RELAYS ]
+OWL_CLASSES = [ OWLCLASS_WEATHER,
+                OWLCLASS_ELECTRICITY,
+                OWLCLASS_SOLAR,
+                OWLCLASS_HOTWATER,
+                OWLCLASS_HEATING,
+                OWLCLASS_RELAYS ]
 
-BATTERY_SENSORS = [ SENSOR_ELECTRICITY_BATTERY, SENSOR_HOTWATER_BATTERY, SENSOR_HEATING_BATTERY ]
-RADIO_SENSORS = [ SENSOR_ELECTRICITY_RADIO, SENSOR_HOTWATER_RADIO, SENSOR_HEATING_RADIO, SENSOR_RELAYS_RADIO ]
+BATTERY_SENSORS = [ SENSOR_ELECTRICITY_BATTERY,
+                    SENSOR_HOTWATER_BATTERY,
+                    SENSOR_HEATING_BATTERY ]
+RADIO_SENSORS = [ SENSOR_ELECTRICITY_RADIO,
+                  SENSOR_HOTWATER_RADIO,
+                  SENSOR_HEATING_RADIO,
+                  SENSOR_RELAYS_RADIO ]
 
 SENSOR_TYPES = {
     SENSOR_ELECTRICITY_BATTERY: ['Electricity Battery', None, 'mdi:battery', OWLCLASS_ELECTRICITY],
@@ -189,7 +198,7 @@ class OwlData:
             readable, _, _ = select([sock], [], [], SOCK_TIMEOUT)
             if not readable:
                 _LOGGER.warning(
-                    "Timeout (%s second(s)) waiting for data on port %s.",
+                    "Timeout (%s seconds) waiting for data on port %s",
                     SOCK_TIMEOUT, self._localaddr[1])
                 return
 
@@ -201,7 +210,7 @@ class OwlData:
         try:
             xml = ET.fromstring(xmldata)
             self.data[xml.tag] = xml
-            _LOGGER.debug("Packet received type %s",xml.tag)
+            _LOGGER.debug("Datagram received for type %s", xml.tag)
 
         except ET.ParseError as pe:
             _LOGGER.error("Unable to parse received data: %s", pe)
@@ -316,6 +325,7 @@ class OwlIntuitionSensor(Entity):
                 self._state = round(float(xml.find('channels').
                                               findall('chan')[self._phase-1].
                                               find('day').text)/1000, 2)
+
         # Solar sensors
         elif self._sensor_type == SENSOR_SOLAR_GPOWER:
             self._state = int(float(xml.find('current/generating').text))
@@ -368,7 +378,7 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
         xmldata = packet.decode('utf-8')
         root = xmldata[1:xmldata.find(' ')]
         
-        _LOGGER.debug("datagram received type %s",root)
+        _LOGGER.debug("Datagram received for type %s", root)
         
         if root in OWL_CLASSES:
             # do not call here that method, but instead leave
