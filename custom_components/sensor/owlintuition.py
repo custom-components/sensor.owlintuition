@@ -1,7 +1,7 @@
 """
-Support for OWL Intuition Network OWL.
+Support for OWL Intuition Network.
 For more details about this platform, please refer to the documentation at
-https://github.com/glpatcern/domotica/blob/master/homeass/code/sensor.owlintuition.markdown
+https://github.com/custom-components/sensor.owlintuition/blob/master/sensor.owlintuition.markdown
 """
 
 import asyncio
@@ -23,6 +23,8 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
+
+VERSION = '1.0.0'
 
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'

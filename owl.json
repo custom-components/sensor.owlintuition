@@ -1,10 +1,10 @@
 {
     "sensor.owl_intuition": {
-      "updated_at": "2018-09-27",
-      "version": "0.1.0",
+      "updated_at": "2018-10-07",
+      "version": "1.0",
       "local_location": "/custom_components/sensor/owlintuition.py",
-      "remote_location": "https://raw.githubusercontent.com/jchasey/domotica/master/homeass/code/owlintuition.py",
-      "visit_repo": "https://github.com/jchasey/domotica",
-      "changelog": "https://github.com/custom-components/camera.combined/releases/latest"
+      "remote_location": "https://raw.githubusercontent.com/custom-components/sensor.owlintuition/master/custom_components/sensor/owlintuition.py",
+      "visit_repo": "https://github.com/custom-components/sensor.owlintuition",
+      "changelog": "https://github.com/custom-components/sensor.owlintuition/README.md"
     }
 }
