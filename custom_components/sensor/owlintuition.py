@@ -24,13 +24,14 @@ from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
 
 SENSOR_ELECTRICITY_BATTERY = 'electricity_battery'
+SENSOR_ELECTRICITY_BATTERY_LVL = 'electricity_battery_lvl'
 SENSOR_ELECTRICITY_RADIO = 'electricity_radio'
 SENSOR_ELECTRICITY_POWER = 'electricity_power'
 SENSOR_ELECTRICITY_ENERGY_TODAY = 'electricity_energy_today'
@@ -39,12 +40,14 @@ SENSOR_SOLAR_GENERGY_TODAY = 'solargen_today'
 SENSOR_SOLAR_EPOWER = 'solarexp'
 SENSOR_SOLAR_EENERGY_TODAY = 'solarexp_today'
 SENSOR_HOTWATER_BATTERY = 'hotwater_battery'
+SENSOR_HOTWATER_BATTERY_LVL = 'hotwater_battery_lvl'
 SENSOR_HOTWATER_RADIO = 'hotwater_radio'
 SENSOR_HOTWATER_CURRENT = 'hotwater_current'
 SENSOR_HOTWATER_REQUIRED = 'hotwater_required'
 SENSOR_HOTWATER_AMBIENT = 'hotwater_ambient'
 SENSOR_HOTWATER_STATE = 'hotwater_state'
 SENSOR_HEATING_BATTERY = 'heating_battery'
+SENSOR_HEATING_BATTERY_LVL = 'heating_battery_lvl'
 SENSOR_HEATING_RADIO = 'heating_radio'
 SENSOR_HEATING_CURRENT = 'heating_current'
 SENSOR_HEATING_REQUIRED = 'heating_required'
@@ -78,6 +81,7 @@ RADIO_SENSORS = [ SENSOR_ELECTRICITY_RADIO,
 
 SENSOR_TYPES = {
     SENSOR_ELECTRICITY_BATTERY: ['Electricity Battery', None, 'mdi:battery', OWLCLASS_ELECTRICITY],
+    SENSOR_ELECTRICITY_BATTERY_LVL: ['Electricity Battery Level', None, 'mdi:battery', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_RADIO: ['Electricity Radio', 'dBm', 'mdi:signal', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_POWER: ['Electricity Power', 'W', 'mdi:flash', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_ENERGY_TODAY: ['Electricity Today', 'kWh', 'mdi:flash', OWLCLASS_ELECTRICITY],
@@ -86,12 +90,14 @@ SENSOR_TYPES = {
     SENSOR_SOLAR_EPOWER: ['Solar Exporting', 'W', 'mdi:flash', OWLCLASS_SOLAR],
     SENSOR_SOLAR_EENERGY_TODAY: ['Solar Exported Today', 'kWh', 'mdi:flash', OWLCLASS_SOLAR],
     SENSOR_HOTWATER_BATTERY: ['Hotwater Battery', None, 'mdi:battery', OWLCLASS_HOTWATER],
+    SENSOR_HOTWATER_BATTERY_LVL: ['Hotwater Battery Level', 'V', 'mdi:battery', OWLCLASS_HOTWATER],
     SENSOR_HOTWATER_RADIO: ['Hotwater Radio', 'dBm', 'mdi:signal', OWLCLASS_HOTWATER],
     SENSOR_HOTWATER_CURRENT: ['Hotwater Temperature', '°C', 'mdi:thermometer', OWLCLASS_HOTWATER],
     SENSOR_HOTWATER_REQUIRED: ['Hotwater Required', '°C', 'mdi:thermostat', OWLCLASS_HOTWATER],
     SENSOR_HOTWATER_AMBIENT: ['Hotwater Ambient', '°C', 'mdi:thermometer', OWLCLASS_HOTWATER],
     SENSOR_HOTWATER_STATE: ['Hotwater State', '', 'mdi:information-outline', OWLCLASS_HOTWATER],
     SENSOR_HEATING_BATTERY: ['Heating Battery', None, 'mdi:battery', OWLCLASS_HEATING],
+    SENSOR_HEATING_BATTERY_LVL: ['Heating Battery Level', 'V', 'mdi:battery', OWLCLASS_HEATING],
     SENSOR_HEATING_RADIO: ['Heating Radio', 'dBm', 'mdi:signal', OWLCLASS_HEATING],
     SENSOR_HEATING_CURRENT: ['Heating Temperature', '°C', 'mdi:thermometer', OWLCLASS_HEATING],
     SENSOR_HEATING_REQUIRED: ['Heating Required', '°C', 'mdi:thermostat', OWLCLASS_HEATING],
@@ -277,9 +283,12 @@ class OwlIntuitionSensor(Entity):
         # Radio & Battery sensors
         if self._sensor_type in RADIO_SENSORS:
             self._state = int(xml.find('signal').attrib['rssi'])
+        elif self._sensor_type == SENSOR_ELECTRICITY_BATTERY_LVL:
+            # Battery level in % for OWLCLASS_ELECTRICITY, mV for others
+            self._state = int(xml.find("battery").attrib['level'][:-1])
+        elif self._sensor_type in [SENSOR_HOTWATER_BATTERY_LVL, SENSOR_HEATING_BATTERY_LVL]:
+            self._state = round(float(xml.find("battery").attrib['level'])/1000, 2)
         elif self._sensor_type == SENSOR_ELECTRICITY_BATTERY:
-            # Battery in % for OWLCLASS_ELECTRICITY, mV for others
-            # strip off the '%'
             batt_lvl = int(xml.find("battery").attrib['level'][:-1])
             if batt_lvl > 90:
                 self._state = 'High'
@@ -289,7 +298,7 @@ class OwlIntuitionSensor(Entity):
                 self._state = 'Low'
             else:
                 self._state = 'Very Low'
-        elif self._sensor_type in BATTERY_SENSORS:
+        elif self._sensor_type in [SENSOR_HOTWATER_BATTERY, SENSOR_HEATING_BATTERY]:
             # 2670mV = 66%
             # 2780mV = 76%
             batt_lvl = int(xml.find("battery").attrib['level'])
