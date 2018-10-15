@@ -304,9 +304,9 @@ class OwlIntuitionSensor(Entity):
             batt_lvl = int(xml.find("battery").attrib['level'])
             if batt_lvl > 2900:
                 self._state = 'High'
-            elif batt_lvl > 2500:
+            elif batt_lvl > 2750:
                 self._state = 'Medium'
-            elif batt_lvl > 2300:
+            elif batt_lvl > 2600:
                 self._state = 'Low'
             else:
                 self._state = 'Very Low'            
