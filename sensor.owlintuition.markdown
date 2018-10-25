@@ -25,7 +25,7 @@ sensor:
     host: 192.168.1.1         # IP address that the NetworkOWL sends to (your Home Assistant IP)
     port: 4321                # Port number of above
 ```
-By default only the electrical use will be monitored.
+By default only the electricity sensors will be monitored. The host parameter is generally not necessary and will default to `localhost`.
 
 {% linkable_title Configuration variables %}
 
@@ -33,8 +33,8 @@ Currently, this platform supports electric probes and solar generators. For the 
 
 This platform exposes multiple sensors according to the monitored conditions. The type of conditions that can be monitored are:
 
-- **electricity**: Electricial energy being used.
-- **solar**: Solar power being generated.
+- **electricity**: Electrical energy being used.
+- **solar**: Solar power being generated and used.
 - **heating**: Heating system.
 - **hot_water**: Hot water system.
 
