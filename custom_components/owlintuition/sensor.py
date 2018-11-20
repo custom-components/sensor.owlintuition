@@ -7,9 +7,6 @@ https://github.com/custom-components/sensor.owlintuition/blob/master/sensor.owli
 import asyncio
 import socket
 from xml.etree import ElementTree as ET
-from datetime import timedelta
-from select import select
-from functools import reduce
 
 import logging
 import voluptuous as vol
@@ -21,7 +18,6 @@ from homeassistant.const import (CONF_NAME, CONF_PORT,
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
-from homeassistant.util import Throttle
 
 VERSION = '1.4.0'
 _LOGGER = logging.getLogger(__name__)
@@ -70,7 +66,7 @@ OWLCLASS_HOTWATER = 'hot_water'
 OWLCLASS_HEATING = 'heating'
 OWLCLASS_RELAYS = 'relays'
 
-OWL_CLASSES = [ OWLCLASS_WEATHER,
+OWL_CLASSES = [ #OWLCLASS_WEATHER,
                 OWLCLASS_ELECTRICITY,
                 OWLCLASS_SOLAR,
                 OWLCLASS_HOTWATER,
@@ -87,7 +83,7 @@ RADIO_SENSORS = [ SENSOR_ELECTRICITY_RADIO,
 
 SENSOR_TYPES = {
     SENSOR_ELECTRICITY_BATTERY: ['Electricity Battery', None, 'mdi:battery', OWLCLASS_ELECTRICITY],
-    SENSOR_ELECTRICITY_BATTERY_LVL: ['Electricity Battery Level', None, 'mdi:battery', OWLCLASS_ELECTRICITY],
+    SENSOR_ELECTRICITY_BATTERY_LVL: ['Electricity Battery Level', '%', 'mdi:battery', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_RADIO: ['Electricity Radio', 'dBm', 'mdi:signal', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_POWER: ['Electricity Power', 'W', 'mdi:flash', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_ENERGY_TODAY: ['Electricity Today', 'kWh', 'mdi:flash', OWLCLASS_ELECTRICITY],
@@ -146,30 +142,20 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 SOCK_TIMEOUT = 60
 
 
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up the OWL Intuition Sensors."""
     hostname = config.get(CONF_HOST)
     if hostname == 'localhost':
         # Perform a reverse lookup to make sure we listen to the correct IP
         hostname = socket.gethostbyname(socket.getfqdn())
 
-    # Try and estimate an appropriate refresh interval, assuming each module
-    # is refreshed every 60 seconds.
-    # All of this won't be needed with an async listener...
-    try:
-        secs = 60/len(config.get(CONF_MONITORED_CONDITIONS))
-    except ZeroDivisionError:
-        secs = 60
-    owldata = OwlData((hostname, config.get(CONF_PORT)), \
-                      timedelta(seconds=(secs)))
+    owldata = OwlData()
 
-    # Ideally an async listener loop as follows would be a better solution,
-    # but it crashes HA!
-    #owljob = hass.loop.create_datagram_endpoint(
-    #             lambda: OwlStateUpdater(hass.loop), \
-    #             local_addr=(hostname, config.get(CONF_PORT)))
-    #hass.async_add_job(owljob)
+    # Create an async listener to get the UDP packets sent by the OWL station
+    owljob = hass.loop.create_datagram_endpoint(
+                 lambda: OwlStateUpdater(hass, owldata.on_data_received), \
+                 local_addr=(hostname, config.get(CONF_PORT)))
+    hass.async_create_task(owljob)
 
     # initialize cost sensor unit of measurement and icon
     SENSOR_TYPES[SENSOR_ELECTRICITY_COST_TODAY][1] = \
@@ -198,42 +184,41 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
 class OwlData:
     """A class to retrieve data from the OWL station via UDP.
     The callback method can be used by an event loop in a thread-safe way
-    when new data is received. However, async loops crash HA!
-    The update() method is instead fully synchronous.
+    when new data is received.
     """
 
-    def __init__(self, localaddr, refreshinterval):
+    def __init__(self):
         """Prepare an empty dictionary"""
         self.data = {}
-        self._localaddr = localaddr
-        self.update = Throttle(refreshinterval)(self._update)
+        #self._localaddr = localaddr
+        #self.update = Throttle(refreshinterval)(self._update)
 
-    def _update(self):
-        """Retrieve the latest data by listening to the periodic UDP message"""
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.settimeout(SOCK_TIMEOUT)
-            try:
-                sock.bind(self._localaddr)
-            except socket.error as se:
-                _LOGGER.error("Unable to bind: %s", se)
-                return
-
-            readable, _, _ = select([sock], [], [], SOCK_TIMEOUT)
-            if not readable:
-                _LOGGER.warning(
-                    "Timeout (%s seconds) waiting for data on port %s",
-                    SOCK_TIMEOUT, self._localaddr[1])
-                return
-
-            data, _ = sock.recvfrom(1024)
-            self.on_data_received(data.decode('utf-8'))
+#    def _update(self):
+#        """Retrieve the latest data by listening to the periodic UDP message"""
+#        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+#            sock.settimeout(SOCK_TIMEOUT)
+#            try:
+#                sock.bind(self._localaddr)
+#            except socket.error as se:
+#                _LOGGER.error("Unable to bind: %s", se)
+#                return
+#
+#            readable, _, _ = select([sock], [], [], SOCK_TIMEOUT)
+#            if not readable:
+#                _LOGGER.warning(
+#                    "Timeout (%s seconds) waiting for data on port %s",
+#                    SOCK_TIMEOUT, self._localaddr[1])
+#                return
+#
+#            data, _ = sock.recvfrom(1024)
+#            self.on_data_received(data.decode('utf-8'))
 
     def on_data_received(self, xmldata):
         """Callback when new data is received: store it in the dict"""
         try:
             xml = ET.fromstring(xmldata)
             self.data[xml.tag] = xml
-            _LOGGER.debug("Datagram received for type %s", xml.tag)
+            _LOGGER.info("Datagram received for type %s", xml.tag)
 
         except ET.ParseError as pe:
             _LOGGER.error("Unable to parse received data: %s", pe)
@@ -294,14 +279,15 @@ class OwlIntuitionSensor(Entity):
 
     def update(self):
         """Retrieve the latest value for this sensor."""
-        self._owldata.update()
         xml = self._owldata.get(self._owl_class)
         if xml is None:
             return
         xml_ver = xml.attrib.get('ver')
         self._attrs[ATTR_LAST_UPDATE] = int(xml.find('timestamp').text)
 
-        if (xml.tag == OWLCLASS_HEATING or xml.tag == OWLCLASS_HOTWATER or xml.tag == OWLCLASS_RELAYS):        
+        if (xml.tag == OWLCLASS_HEATING or \
+            xml.tag == OWLCLASS_HOTWATER or \
+            xml.tag == OWLCLASS_RELAYS):
             # Only supports first zone currently
             xml = xml.find('zones/zone')
 
@@ -311,7 +297,8 @@ class OwlIntuitionSensor(Entity):
         elif self._sensor_type == SENSOR_ELECTRICITY_BATTERY_LVL:
             # Battery level in % for OWLCLASS_ELECTRICITY, mV for others
             self._state = int(xml.find("battery").attrib['level'][:-1])
-        elif self._sensor_type in [SENSOR_HOTWATER_BATTERY_LVL, SENSOR_HEATING_BATTERY_LVL]:
+        elif self._sensor_type in [SENSOR_HOTWATER_BATTERY_LVL,
+                                   SENSOR_HEATING_BATTERY_LVL]:
             self._state = round(float(xml.find("battery").attrib['level'])/1000, 2)
         elif self._sensor_type == SENSOR_ELECTRICITY_BATTERY:
             batt_lvl = int(xml.find("battery").attrib['level'][:-1])
@@ -323,7 +310,8 @@ class OwlIntuitionSensor(Entity):
                 self._state = 'Low'
             else:
                 self._state = 'Very Low'
-        elif self._sensor_type in [SENSOR_HOTWATER_BATTERY, SENSOR_HEATING_BATTERY]:
+        elif self._sensor_type in [SENSOR_HOTWATER_BATTERY,
+                                   SENSOR_HEATING_BATTERY]:
             # 2670mV = 66%
             # 2780mV = 76%
             batt_lvl = int(xml.find("battery").attrib['level'])
@@ -409,14 +397,16 @@ class OwlIntuitionSensor(Entity):
             if xml_ver is not None:
                 self._state = HEATING_STATE[int(xml.find('temperature').attrib['state'])]
 
+
 class OwlStateUpdater(asyncio.DatagramProtocol):
     """An helper class for the async UDP listener loop.
     More info at:
     https://docs.python.org/3/library/asyncio-protocol.html"""
 
-    def __init__(self, eloop):
+    def __init__(self, hass, callback):
         """Boiler-plate initialisation"""
-        self.eloop = eloop
+        self.hass = hass
+        self.callback = callback
         self.transport = None
 
     def connection_made(self, transport):
@@ -429,16 +419,16 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
         xmldata = packet.decode('utf-8')
         root = xmldata[1:xmldata.find(' ')]
         
-        _LOGGER.debug("Datagram received for type %s", root)
-        
+        self.hass.async_add_executor_job(_LOGGER.error, "Datagram received")
         if root in OWL_CLASSES:
-            # do not call here that method, but instead leave
-            # the event loop do it when convenient AND thread-safe!
-            self.eloop.call_soon_threadsafe(
-                owldata.on_data_received, xmldata)
+            # asynchronously execute the callback
+            self.hass.async_add_executor_job(self.callback, xmldata)
         else:
-            _LOGGER.warning("Unsupported type '%s' in data: %s", \
-                            root, packet)
+            # unknown XML datagram, (async) log it as is for
+            # a possible extension# of this platform
+            self.hass.async_add_executor_job(_LOGGER.error, \
+                          "Unsupported type '%s' in data: %s", \
+                          root, packet)
 
     def error_received(self, exc):
         """Boiler-plate error received method"""
