@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<electricity id="44371914A0F4" ver="2.0">
+  <timestamp>1543140910</timestamp>
+  <signal rssi="-77" lqi="47" />
+  <battery level="100%" />
+  <channels>
+    <chan id="0">
+      <curr units="w">118.00</curr>
+      <day units="wh">1010.49</day>
+    </chan>
+    <chan id="1">
+      <curr units="w">102.00</curr>
+      <day units="wh">725.05</day>
+    </chan>
+    <chan id="2">
+      <curr units="w">55.00</curr>
+      <day units="wh">233.70</day>
+    </chan>
+    <chan id="3">
+      <curr units="w">0.00</curr>
+      <day units="wh">0.00</day>
+    </chan>
+    <chan id="4">
+      <curr units="w">0.00</curr>
+      <day units="wh">0.00</day>
+    </chan>
+    <chan id="5">
+      <curr units="w">0.00</curr>
+      <day units="wh">0.00</day>
+    </chan>
+  </channels>
+  <property>
+    <current>
+      <watts>275.00</watts>
+      <cost>3.28</cost>
+    </current>
+    <day>
+      <wh>1969.24</wh>
+      <cost>41.06</cost>
+    </day>
+    <tariff time="1543144510">
+      <start>1543104000</start>
+      <curr_price>0.12</curr_price>
+      <block_limit>4294967295</block_limit>
+      <block_usage>1480</block_usage>
+    </tariff>
+  </property>
+</electricity>
