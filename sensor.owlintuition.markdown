@@ -46,6 +46,8 @@ sensor:
     port: 4321
     host: 192.168.1.10
     mode: triphase
+    cost_icon: 'mdi:currency-eur'
+    cost_unit_of_measurement: EUR
     monitored_conditions:
       - electricity
       - heating
