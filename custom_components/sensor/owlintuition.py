@@ -24,17 +24,21 @@ from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
+CONF_COST_UNIT_OF_MEASUREMENT = 'cost_unit_of_measurement'
+CONF_COST_ICON = 'cost_icon'
 
 SENSOR_ELECTRICITY_BATTERY = 'electricity_battery'
 SENSOR_ELECTRICITY_BATTERY_LVL = 'electricity_battery_lvl'
 SENSOR_ELECTRICITY_RADIO = 'electricity_radio'
 SENSOR_ELECTRICITY_POWER = 'electricity_power'
 SENSOR_ELECTRICITY_ENERGY_TODAY = 'electricity_energy_today'
+SENSOR_ELECTRICITY_COST_TODAY = 'electricity_cost_today'
+SENSOR_ELECTRICITY_LAST_UPDATE = 'electricity_last_update'
 SENSOR_SOLAR_GPOWER = 'solargen'
 SENSOR_SOLAR_GENERGY_TODAY = 'solargen_today'
 SENSOR_SOLAR_EPOWER = 'solarexp'
@@ -85,6 +89,8 @@ SENSOR_TYPES = {
     SENSOR_ELECTRICITY_RADIO: ['Electricity Radio', 'dBm', 'mdi:signal', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_POWER: ['Electricity Power', 'W', 'mdi:flash', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_ENERGY_TODAY: ['Electricity Today', 'kWh', 'mdi:flash', OWLCLASS_ELECTRICITY],
+    SENSOR_ELECTRICITY_COST_TODAY: ['Cost Today', None, 'mdi:coin', OWLCLASS_ELECTRICITY],
+    SENSOR_ELECTRICITY_LAST_UPDATE: ['Electricity Last Update', None, 'mdi:update', OWLCLASS_ELECTRICITY],
     SENSOR_SOLAR_GPOWER: ['Solar Generating', 'W', 'mdi:flash', OWLCLASS_SOLAR],
     SENSOR_SOLAR_GENERGY_TODAY: ['Solar Generated Today', 'kWh', 'mdi:flash', OWLCLASS_SOLAR],
     SENSOR_SOLAR_EPOWER: ['Solar Exporting', 'W', 'mdi:flash', OWLCLASS_SOLAR],
@@ -131,7 +137,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_MODE, default=MODE_MONO):
         vol.In([MODE_MONO, MODE_TRI]),
     vol.Optional(CONF_MONITORED_CONDITIONS, default=DEFAULT_MONITORED):
-        vol.All(cv.ensure_list, [vol.In(OWL_CLASSES)])
+        vol.All(cv.ensure_list, [vol.In(OWL_CLASSES)]),
+    vol.Optional(CONF_COST_ICON, default='mdi:coin'): cv.string,
+    vol.Optional(CONF_COST_UNIT_OF_MEASUREMENT): cv.string,
 })
 
 SOCK_TIMEOUT = 60
@@ -161,6 +169,10 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     #             lambda: OwlStateUpdater(hass.loop), \
     #             local_addr=(hostname, config.get(CONF_PORT)))
     #hass.async_add_job(owljob)
+
+    # initialize cost sensor unit of measurement and icon
+    SENSOR_TYPES[SENSOR_ELECTRICITY_COST_TODAY][1] = config.get(CONF_COST_UNIT_OF_MEASUREMENT)
+    SENSOR_TYPES[SENSOR_ELECTRICITY_COST_TODAY][2] = config.get(CONF_COST_ICON)
 
     dev = []
     # Iterate through the possible sensors and add if class is monitored
@@ -336,6 +348,15 @@ class OwlIntuitionSensor(Entity):
                 self._state = round(float(xml.find('channels').
                                               findall('chan')[self._phase-1].
                                               find('day').text)/1000, 2)
+        elif self._sensor_type == SENSOR_ELECTRICITY_COST_TODAY:
+            # xml_ver undefined for older version
+            if xml_ver is None:
+                self._state = 'N/A'
+            else:
+                # the measure comes in cent. of the configured currency
+                self._state = round(float(xml.find('property/day/cost').text)/100, 3)
+        elif self._sensor_type == SENSOR_ELECTRICITY_LAST_UPDATE:
+            self._state = int(xml.find('timestamp').text)
 
         # Solar sensors
         elif self._sensor_type == SENSOR_SOLAR_GPOWER:
