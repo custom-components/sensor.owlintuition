@@ -106,7 +106,7 @@ SENSOR_TYPES = {
 }
 
 HEATING_STATE = [   'Standby',                      # 0
-                    'Comfort (Runing)',             # 1
+                    'Comfort (Running)',            # 1
                     '',                             # 2
                     '',                             # 3
                     'Comfort (Up To Temperature)',  # 4
@@ -167,9 +167,9 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     for sensor in SENSOR_TYPES:
         if SENSOR_TYPES[sensor][3] in config.get(CONF_MONITORED_CONDITIONS):
             dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME), sensor))
-            _LOGGER.debug("Adding sensor %s",sensor)
+            _LOGGER.debug("Adding sensor %s", sensor)
     
-    # Handle triphase sensors (only for electricity sensors for now)
+    # In case of electricity sensors, handle triphase mode
     if config.get(CONF_MODE) == MODE_TRI and \
        OWLCLASS_ELECTRICITY in config.get(CONF_MONITORED_CONDITIONS):
         for phase in range(1, 4):
