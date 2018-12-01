@@ -16,7 +16,8 @@ import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (CONF_NAME, CONF_PORT,
-    CONF_MONITORED_CONDITIONS, CONF_MODE, CONF_HOST)
+    CONF_MONITORED_CONDITIONS, CONF_MODE, CONF_HOST,
+    ATTR_ATTRIBUTION)
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
@@ -24,7 +25,7 @@ from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
@@ -58,6 +59,8 @@ SENSOR_HEATING_REQUIRED = 'heating_required'
 SENSOR_HEATING_STATE = 'heating_state'
 SENSOR_RELAYS_RADIO = 'relays_radio'
 
+ATTR_LAST_UPDATE = 'last_update'
+
 #
 # Sensors selected by defining which classes to monitor
 #
@@ -90,7 +93,6 @@ SENSOR_TYPES = {
     SENSOR_ELECTRICITY_POWER: ['Electricity Power', 'W', 'mdi:flash', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_ENERGY_TODAY: ['Electricity Today', 'kWh', 'mdi:flash', OWLCLASS_ELECTRICITY],
     SENSOR_ELECTRICITY_COST_TODAY: ['Cost Today', None, 'mdi:coin', OWLCLASS_ELECTRICITY],
-    SENSOR_ELECTRICITY_LAST_UPDATE: ['Electricity Last Update', None, 'mdi:update', OWLCLASS_ELECTRICITY],
     SENSOR_SOLAR_GPOWER: ['Solar Generating', 'W', 'mdi:flash', OWLCLASS_SOLAR],
     SENSOR_SOLAR_GENERGY_TODAY: ['Solar Generated Today', 'kWh', 'mdi:flash', OWLCLASS_SOLAR],
     SENSOR_SOLAR_EPOWER: ['Solar Exporting', 'W', 'mdi:flash', OWLCLASS_SOLAR],
@@ -259,6 +261,10 @@ class OwlIntuitionSensor(Entity):
         self._phase = phase
         self._owl_class = SENSOR_TYPES[sensor_type][3]
         self._state = None
+        self._attrs = {
+            ATTR_LAST_UPDATE: None,
+            ATTR_ATTRIBUTION: 'Powered by OWL Intuition'
+            }
 
     @property
     def name(self):
@@ -280,6 +286,11 @@ class OwlIntuitionSensor(Entity):
         """Return the current value for this sensor."""
         return self._state
 
+    @property
+    def device_state_attributes(self):
+        """Return the state attributes of the sensor."""
+        return self._attrs
+
     def update(self):
         """Retrieve the latest value for this sensor."""
         self._owldata.update()
@@ -287,6 +298,7 @@ class OwlIntuitionSensor(Entity):
         if xml is None:
             return
         xml_ver = xml.attrib.get('ver')
+        self._attrs[ATTR_LAST_UPDATE] = int(xml.find('timestamp').text)
 
         if (xml.tag == OWLCLASS_HEATING or xml.tag == OWLCLASS_HOTWATER or xml.tag == OWLCLASS_RELAYS):        
             # Only supports first zone currently
@@ -355,8 +367,6 @@ class OwlIntuitionSensor(Entity):
             else:
                 # the measure comes in cent. of the configured currency
                 self._state = round(float(xml.find('property/day/cost').text)/100, 3)
-        elif self._sensor_type == SENSOR_ELECTRICITY_LAST_UPDATE:
-            self._state = int(xml.find('timestamp').text)
 
         # Solar sensors
         elif self._sensor_type == SENSOR_SOLAR_GPOWER:
