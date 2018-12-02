@@ -173,8 +173,10 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     #hass.async_add_job(owljob)
 
     # initialize cost sensor unit of measurement and icon
-    SENSOR_TYPES[SENSOR_ELECTRICITY_COST_TODAY][1] = config.get(CONF_COST_UNIT_OF_MEASUREMENT)
-    SENSOR_TYPES[SENSOR_ELECTRICITY_COST_TODAY][2] = config.get(CONF_COST_ICON)
+    SENSOR_TYPES[SENSOR_ELECTRICITY_COST_TODAY][1] = \
+        config.get(CONF_COST_UNIT_OF_MEASUREMENT)
+    SENSOR_TYPES[SENSOR_ELECTRICITY_COST_TODAY][2] = \
+        config.get(CONF_COST_ICON)
 
     dev = []
     # Iterate through the possible sensors and add if class is monitored
