@@ -347,7 +347,11 @@ class OwlIntuitionSensor(Entity):
                     self._state = int(float(xml.find('property/current/watts').text))
             else:
                 # TODO: Older xml format not handled yet for tri-phase
-                self._state = int(float(xml.find('channels').
+                if xml_ver is None:
+                    self._state = int(float(xml.findall('chan')[self._phase-1].
+                                            find('curr').text))
+                else:
+                    self._state = int(float(xml.find('channels').
                                             findall('chan')[self._phase-1].
                                             find('curr').text))
         elif self._sensor_type == SENSOR_ELECTRICITY_ENERGY_TODAY:
@@ -359,7 +363,11 @@ class OwlIntuitionSensor(Entity):
                     self._state = round(float(xml.find('property/day/wh').text)/1000, 2)
             else:
                 # TODO: Older xml format not handled yet for tri-phase
-                self._state = round(float(xml.find('channels').
+                if xml_ver is None:
+                    self._state = round(float(xml.findall('chan')[self._phase-1].
+                                              find('day').text)/1000, 2)
+                else:
+                    self._state = round(float(xml.find('channels').
                                               findall('chan')[self._phase-1].
                                               find('day').text)/1000, 2)
         elif self._sensor_type == SENSOR_ELECTRICITY_COST_TODAY:
