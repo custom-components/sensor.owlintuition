@@ -7,6 +7,7 @@ To get started put `/custom_components/sensor/owlintuition.py` here:
 Documentation in Home Assistant format available at [sensor.owlintuition.markdown](./sensor.owlintuition.markdown).
 
 ## Changelog:
+* 1.3 - 13/01/2019: included support for triphase on the old XML format [@hadjimanolisg]
 * 1.2 - 30/11/2018: added electricity cost and last update time (in UTC) sensors
 * 1.1 - 15/10/2018: improved battery sensors
 * 1.0 - 07/10/2018: general refactoring of the code and added support for hot water and heating sensors, credits to @jchasey
