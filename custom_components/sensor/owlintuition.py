@@ -25,8 +25,6 @@ from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = '1.2.1'
-
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
