@@ -1,8 +1,8 @@
 # OWL Intuition
 A set of sensors to integrate the OWL Intuition devices network
 
-To get started put `/custom_components/sensor/owlintuition.py` here:
-`<config directory>/custom_components/sensor/owlintuition.py`
+To get started, copy the `/custom_components/owlintuition` folder here:
+`<config directory>/custom_components/`
 
 Documentation in Home Assistant format available at [sensor.owlintuition.markdown](./sensor.owlintuition.markdown).
 
