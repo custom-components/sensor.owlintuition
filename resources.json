@@ -1,0 +1,4 @@
+[
+  "https://raw.githubusercontent.com/custom-components/sensor.owlintuition/master/custom_components/owlintuition/manifest.json",
+  "https://raw.githubusercontent.com/custom-components/sensor.owlintuition/master/custom_components/owlintuition/__init__.py"
+]
