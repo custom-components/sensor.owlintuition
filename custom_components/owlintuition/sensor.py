@@ -23,7 +23,7 @@ from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util import Throttle
 
-VERSION = '0.0.2'
+VERSION = '1.4.0'
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = 'OWL Intuition'
