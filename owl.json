@@ -1,5 +1,5 @@
 {
-    "sensor.owl_intuition": {
+    "sensor.owlintuition": {
       "updated_at": "2019-05-05",
       "version": "1.4.0",
       "local_location": "/custom_components/owlintuition/sensor.py",
