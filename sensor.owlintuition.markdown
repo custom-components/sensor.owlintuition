@@ -14,7 +14,13 @@ ha_iot_class: "Local Polling"
 
 The `owlintuition` sensor platform consumes the information provided by an [OWL Intuition](http://www.theowl.com/index.php/owl-intuition/) device on your LAN.
 
-In order to use the OWL Intuition platform, you have to configure your OWL base station to push data to your Home Assistant. [Step-by-step description / screenshots to be added here]
+In order to use the OWL Intuition platform, you have to configure your OWL base station to push data to your Home Assistant. 
+How to do this (as of December 2020):
+1. Login into https://www.owlintuition.com with your account
+2. Click on System in the top bar
+3. Scroll to the bottom of the pop-up to "Advanced Settings"
+4. Select the ">" on the Setup Data Push line
+5. Set the IP address to the *INTERNAL IP* of your Home Assistant system, select a port, and click save
 
 To enable the OWL Intuition sensor, add the following lines to your `configuration.yaml`:
 
@@ -23,7 +29,9 @@ To enable the OWL Intuition sensor, add the following lines to your `configurati
 sensor:
   - platform: owlintuition
     host: 192.168.1.1         # IP address that the NetworkOWL sends to (your Home Assistant IP)
-    port: 4321                # Port number of above
+    port: 4321                # Port number you specified to the OWL data push settings
+    monitored_conditions:
+      - electricity
 ```
 By default only the electricity sensors will be monitored. The host parameter is generally not necessary and will default to `localhost`.
 
