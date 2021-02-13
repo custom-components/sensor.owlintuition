@@ -1,9 +1,9 @@
 # OWL Intuition
 A set of sensors to integrate the OWL Intuition devices network
 
-Installation (for Linux or Hassio systems)
+## Installation (for Linux or Hassio systems)
 1. On the Home Assitant server, install the Terminal&SSH Add-On
-2. In Terminal do the following to download the files, and put them in the right place and clean up afterwards
+2. In a terminal do the following to download the files, and put them in the right place and clean up afterwards
 ```
 cd /config
 mkdir temp_dir
@@ -15,6 +15,13 @@ cd /config
 rm -rf temp_dir
 ```
 3. Follow the documentation for using the integration - documentation in Home Assistant format available at [sensor.owlintuition.markdown](./sensor.owlintuition.markdown). (Note you may have to restart the HA server to get this to work)
+
+## Troubleshooting
+
+Some discussion and troubleshooting about this integration took place in the [Home Assistant forum](https://community.home-assistant.io/t/owl-intuition-pv-home-assistant/).
+
+In particular, if HA seems to not receive any data, a first step is to validate that OWL is effectively sending out UDP updates to the configured port, and that the data can be received from the HA end. The [snippet here](test/testowl.py) may help to check that (edit it to suit your needs).
+
 
 ## Changelog:
 * 1.4 - 05/05/2019: added resources.json and updated code layout following 'the great migration'
