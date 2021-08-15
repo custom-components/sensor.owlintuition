@@ -14,25 +14,26 @@ from functools import reduce
 import logging
 import voluptuous as vol
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import (CONF_NAME, CONF_PORT,
-    CONF_MONITORED_CONDITIONS, CONF_MODE, CONF_HOST,
-    ATTR_ATTRIBUTION)
+from homeassistant.components.sensor import (
+    PLATFORM_SCHEMA,
+    STATE_CLASS_MEASUREMENT,
+)
+import homeassistant.const as c
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util import Throttle
-import homeassistant.const as c
 
+# these should be part of e.g. homeassistant.component.sensor
+CONF_COST_UNIT_OF_MEASUREMENT = 'cost_unit_of_measurement'
+CONF_COST_ICON = 'cost_icon'
+ATTR_LAST_UPDATE = 'last_update'
+
+# OWL-specific constants
 VERSION = '1.5.0'
-_LOGGER = logging.getLogger(__name__)
-
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
-CONF_COST_UNIT_OF_MEASUREMENT = 'cost_unit_of_measurement'
-CONF_COST_ICON = 'cost_icon'
-STATE_CLASS_MEASUREMENT = 'measurement'   # should be part of homeassistant.const
 
 SENSOR_ELECTRICITY_BATTERY = 'electricity_battery'
 SENSOR_ELECTRICITY_BATTERY_LVL = 'electricity_battery_lvl'
@@ -59,8 +60,6 @@ SENSOR_HEATING_CURRENT = 'heating_current'
 SENSOR_HEATING_REQUIRED = 'heating_required'
 SENSOR_HEATING_STATE = 'heating_state'
 SENSOR_RELAYS_RADIO = 'relays_radio'
-
-ATTR_LAST_UPDATE = 'last_update'
 
 #
 # Sensors selected by defining which classes to monitor
@@ -134,12 +133,12 @@ HOTWATER_STATE = [  'Standby',                      # 0
 DEFAULT_MONITORED = [ OWLCLASS_ELECTRICITY ]
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_PORT): cv.port,
-    vol.Optional(CONF_HOST, default='localhost'): cv.string,
-    vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    vol.Optional(CONF_MODE, default=MODE_MONO):
+    vol.Required(c.CONF_PORT): cv.port,
+    vol.Optional(c.CONF_HOST, default='localhost'): cv.string,
+    vol.Optional(c.CONF_NAME, default=DEFAULT_NAME): cv.string,
+    vol.Optional(c.CONF_MODE, default=MODE_MONO):
         vol.In([MODE_MONO, MODE_TRI]),
-    vol.Optional(CONF_MONITORED_CONDITIONS, default=DEFAULT_MONITORED):
+    vol.Optional(c.CONF_MONITORED_CONDITIONS, default=DEFAULT_MONITORED):
         vol.All(cv.ensure_list, [vol.In(OWL_CLASSES)]),
     vol.Optional(CONF_COST_ICON, default='mdi:coin'): cv.string,
     vol.Optional(CONF_COST_UNIT_OF_MEASUREMENT): cv.string,
@@ -147,11 +146,13 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 SOCK_TIMEOUT = 60
 
+_LOGGER = logging.getLogger(__name__)
+
 
 @asyncio.coroutine
 def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up the OWL Intuition Sensors."""
-    hostname = config.get(CONF_HOST)
+    hostname = config.get(c.CONF_HOST)
     if hostname == 'localhost':
         # Perform a reverse lookup to make sure we listen to the correct IP
         hostname = socket.gethostbyname(socket.getfqdn())
@@ -160,10 +161,10 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     # is refreshed every 60 seconds.
     # All of this won't be needed with an async listener...
     try:
-        secs = 60/len(config.get(CONF_MONITORED_CONDITIONS))
+        secs = 60/len(config.get(c.CONF_MONITORED_CONDITIONS))
     except ZeroDivisionError:
         secs = 60
-    owldata = OwlData((hostname, config.get(CONF_PORT)), \
+    owldata = OwlData((hostname, config.get(c.CONF_PORT)), \
                       timedelta(seconds=(secs)))
 
     # Ideally an async listener loop as follows would be a better solution,
@@ -182,17 +183,17 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     dev = []
     # Iterate through the possible sensors and add if class is monitored
     for sensor in SENSOR_TYPES:
-        if SENSOR_TYPES[sensor][3] in config.get(CONF_MONITORED_CONDITIONS):
-            dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME), sensor))
+        if SENSOR_TYPES[sensor][3] in config.get(c.CONF_MONITORED_CONDITIONS):
+            dev.append(OwlIntuitionSensor(owldata, config.get(c.CONF_NAME), sensor))
             _LOGGER.debug("Adding sensor %s", sensor)
     
     # In case of electricity sensors, handle triphase mode
-    if config.get(CONF_MODE) == MODE_TRI and \
-       OWLCLASS_ELECTRICITY in config.get(CONF_MONITORED_CONDITIONS):
+    if config.get(c.CONF_MODE) == MODE_TRI and \
+       OWLCLASS_ELECTRICITY in config.get(c.CONF_MONITORED_CONDITIONS):
         for phase in range(1, 4):
-            dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME),
+            dev.append(OwlIntuitionSensor(owldata, config.get(c.CONF_NAME),
                                           SENSOR_ELECTRICITY_POWER, phase))
-            dev.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME),
+            dev.append(OwlIntuitionSensor(owldata, config.get(c.CONF_NAME),
                                           SENSOR_ELECTRICITY_ENERGY_TODAY, phase))
     async_add_devices(dev, True)
 
@@ -267,7 +268,7 @@ class OwlIntuitionSensor(Entity):
         self._state = None
         self._attrs = {
             ATTR_LAST_UPDATE: None,
-            ATTR_ATTRIBUTION: 'Powered by OWL Intuition'
+            c.ATTR_ATTRIBUTION: 'Powered by OWL Intuition'
             }
 
     @property
