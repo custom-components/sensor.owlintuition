@@ -28,6 +28,9 @@ from homeassistant.util import Throttle
 CONF_COST_UNIT_OF_MEASUREMENT = 'cost_unit_of_measurement'
 CONF_COST_ICON = 'cost_icon'
 ATTR_LAST_UPDATE = 'last_update'
+ATTR_LAST_RESET = 'last_reset'
+ATTR_DEVICE_CLASS = 'device_class'
+ATTR_STATE_CLASS = 'state_class'
 
 # OWL-specific constants
 VERSION = '1.5.0'
@@ -264,10 +267,12 @@ class OwlIntuitionSensor(Entity):
         self._sensor_type = sensor_type
         self._phase = phase
         self._owl_class = SENSOR_TYPES[sensor_type][3]
-        self._device_class = SENSOR_TYPES[sensor_type][4]
         self._state = None
         self._attrs = {
             ATTR_LAST_UPDATE: None,
+            ATTR_LAST_RESET: None,
+            ATTR_DEVICE_CLASS: SENSOR_TYPES[sensor_type][4],
+            ATTR_STATE_CLASS: STATE_CLASS_MEASUREMENT if SENSOR_TYPES[sensor_type][4] else None,
             c.ATTR_ATTRIBUTION: 'Powered by OWL Intuition'
             }
 
@@ -292,24 +297,6 @@ class OwlIntuitionSensor(Entity):
         return SENSOR_TYPES[self._sensor_type][2]
 
     @property
-    def device_class(self):
-        """Rerurn the device class for this sensor."""
-        return self._device_class
-
-    @property
-    def state_class(self):
-        """Return the state class for this sensor, i.e. `measurement` if its device class is defined."""
-        return STATE_CLASS_MEASUREMENT if self._device_class else None
-
-    @property
-    def last_reset(self):
-        """Return the timestamp when the measurement was last reset (relevant only for energy measurements)."""
-        if self._device_class == c.DEVICE_CLASS_ENERGY:
-            # the reset happens at midnight local time
-            return datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        return None
-
-    @property
     def device_state_attributes(self):
         """Return the state attributes of the sensor."""
         return self._attrs
@@ -322,6 +309,8 @@ class OwlIntuitionSensor(Entity):
             return
         xml_ver = xml.attrib.get('ver')
         self._attrs[ATTR_LAST_UPDATE] = int(xml.find('timestamp').text)
+        if self._attrs[ATTR_DEVICE_CLASS] == c.DEVICE_CLASS_ENERGY:
+            self._attrs[ATTR_LAST_RESET] = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
 
         if (xml.tag == OWLCLASS_HEATING or xml.tag == OWLCLASS_HOTWATER or xml.tag == OWLCLASS_RELAYS):        
             # Only supports first zone currently
