@@ -17,6 +17,7 @@ import voluptuous as vol
 from homeassistant.components.sensor import (
     PLATFORM_SCHEMA,
     STATE_CLASS_MEASUREMENT,
+    STATE_CLASS_TOTAL_INCREASING
 )
 import homeassistant.const as c
 from homeassistant.exceptions import TemplateError
@@ -272,7 +273,8 @@ class OwlIntuitionSensor(Entity):
             ATTR_LAST_UPDATE: None,
             ATTR_LAST_RESET: None,
             ATTR_DEVICE_CLASS: SENSOR_TYPES[sensor_type][4],
-            ATTR_STATE_CLASS: STATE_CLASS_MEASUREMENT if SENSOR_TYPES[sensor_type][4] else None,
+            ATTR_STATE_CLASS: STATE_CLASS_TOTAL_INCREASING if SENSOR_TYPES[sensor_type][4] == c.DEVICE_CLASS_ENERGY \
+                              else (STATE_CLASS_MEASUREMENT if SENSOR_TYPES[sensor_type][4] else None),
             c.ATTR_ATTRIBUTION: 'Powered by OWL Intuition'
             }
 
