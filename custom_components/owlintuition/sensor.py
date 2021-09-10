@@ -23,7 +23,6 @@ import homeassistant.const as c
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
-from homeassistant.util import Throttle
 
 # these should be part of e.g. homeassistant.component.sensor
 CONF_COST_UNIT_OF_MEASUREMENT = 'cost_unit_of_measurement'
@@ -161,15 +160,8 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
         # Perform a reverse lookup to make sure we listen to the correct IP
         hostname = socket.gethostbyname(socket.getfqdn())
 
-    # Try and estimate an appropriate refresh interval, assuming each module
-    # is refreshed every 60 seconds.
-    # All of this won't be needed with an async listener...
-    try:
-        secs = 60/len(config.get(c.CONF_MONITORED_CONDITIONS))
-    except ZeroDivisionError:
-        secs = 60
-    owldata = OwlData((hostname, config.get(c.CONF_PORT)), \
-                      timedelta(seconds=(secs)))
+    # initialize the listener for OWL data
+    owldata = OwlData((hostname, config.get(c.CONF_PORT)))
 
     # Ideally an async listener loop as follows would be a better solution,
     # but it crashes HA!
@@ -209,13 +201,12 @@ class OwlData:
     The update() method is instead fully synchronous.
     """
 
-    def __init__(self, localaddr, refreshinterval):
+    def __init__(self, localaddr):
         """Prepare an empty dictionary"""
         self.data = {}
         self._localaddr = localaddr
-        self.update = Throttle(refreshinterval)(self._update)
 
-    def _update(self):
+    def update(self):
         """Retrieve the latest data by listening to the periodic UDP message"""
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(SOCK_TIMEOUT)
