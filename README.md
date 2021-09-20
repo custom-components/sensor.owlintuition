@@ -27,6 +27,7 @@ In particular, if HA seems to not receive any data, a first step is to validate 
 
 ## Changelog:
 
+* 1.5 - 20/09/2021: added support for the Energy feature in HA, and included [@shortbloke] a templated sensor for the Grid consumption
 * 1.4 - 05/05/2019: added resources.json and updated code layout following 'the great migration'
 * 1.3 - 13/01/2019: included support for triphase on the old XML format [@hadjimanolisg]
 * 1.2 - 30/11/2018: added electricity cost and last update time (in UTC) sensors
