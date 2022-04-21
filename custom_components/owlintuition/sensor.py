@@ -92,11 +92,6 @@ OWL_CLASSES = [ OWLCLASS_WEATHER,
                 OWLCLASS_HEATING,
                 OWLCLASS_RELAYS ]
 
-RADIO_SENSORS = [ SENSOR_ELECTRICITY_RADIO,
-                  SENSOR_HOTWATER_RADIO,
-                  SENSOR_HEATING_RADIO,
-                  SENSOR_RELAYS_RADIO ]
-
 SENSOR_TYPES = {
     SENSOR_ELECTRICITY_BATTERY: ['Electricity Battery', None, 'mdi:battery', OWLCLASS_ELECTRICITY, None, SensorStateClass.MEASUREMENT],
     SENSOR_ELECTRICITY_BATTERY_LVL: ['Electricity Battery Level', PERCENTAGE, 'mdi:battery', OWLCLASS_ELECTRICITY, SensorDeviceClass.BATTERY, SensorStateClass.MEASUREMENT],
@@ -326,8 +321,8 @@ class OwlIntuitionSensor(SensorEntity):
             # Only supports first zone currently
             xml = xml.find('zones/zone')
 
-        # Radio & Battery sensors
-        if self._sensor_type in RADIO_SENSORS:
+        # Radio sensors
+        if self._attr_device_class == SensorDeviceClass.SIGNAL_STRENGTH:
             self._state = int(xml.find('signal').attrib['rssi'])
         elif self._sensor_type == SENSOR_ELECTRICITY_BATTERY_LVL:
             # Battery level in % for OWLCLASS_ELECTRICITY, mV for others
