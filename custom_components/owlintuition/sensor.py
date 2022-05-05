@@ -43,7 +43,7 @@ CONF_COST_UNIT_OF_MEASUREMENT = 'cost_unit_of_measurement'
 CONF_COST_ICON = 'cost_icon'
 
 # OWL-specific constants
-VERSION = '1.5.0'
+VERSION = '1.6.0'
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
