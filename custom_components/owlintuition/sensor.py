@@ -213,16 +213,28 @@ class OwlData:
         """Prepare an empty dictionary"""
         self.data = {}
         self._localaddr = localaddr
+        self._multicast = True
 
     def update(self):
         """Retrieve the latest data by listening to the periodic UDP message"""
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
             sock.settimeout(SOCK_TIMEOUT)
-            try:
-                sock.bind(self._localaddr)
-            except socket.error as se:
-                _LOGGER.error("Unable to bind: %s", se)
-                return
+            if not self._multicast:
+                try:
+                    sock.bind(self._localaddr)
+                except socket.error as se:
+                    _LOGGER.error("Unable to bind: %s", se)
+                    return
+            else:
+                MCAST_GRP = '224.192.32.19' 
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                try:
+                    sock.bind((MCAST_GRP, self._localaddr[1]))
+                except socket.error as se:
+                    _LOGGER.error("Unable to bind: %s", se)
+                    return
+                sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self._localaddr[0]))
+                sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self._localaddr[0]))
 
             readable, _, _ = select([sock], [], [], SOCK_TIMEOUT)
             if not readable:
@@ -414,7 +426,7 @@ class OwlStateUpdater(asyncio.DatagramProtocol):
         self.transport = None
 
     def connection_made(self, transport):
-        """Boiler-plate connection made metod"""
+        """Boiler-plate connection made method"""
         self.transport = transport
 
     def datagram_received(self, packet, addr_unused):
