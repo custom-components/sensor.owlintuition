@@ -14,15 +14,25 @@ ha_iot_class: "Local Polling"
 
 The `owlintuition` sensor platform consumes the information provided by an [OWL Intuition](http://www.theowl.com/index.php/owl-intuition/) device on your LAN.
 
-In order to use the OWL Intuition platform, you have to configure your OWL base station to push data to your Home Assistant. 
-How to do this (as of December 2020):
+In order to use the OWL Intuition platform, you have to either configure the HA sensor to listen for the base station's multicast packets (the device's default configuration) or configure your OWL base station to push data to your Home Assistant IP. How to do this (as of December 2020):
 1. Login into https://www.owlintuition.com with your account
 2. Click on System in the top bar
 3. Scroll to the bottom of the pop-up to "Advanced Settings"
 4. Select the ">" on the Setup Data Push line
 5. Set the IP address to the *INTERNAL IP* of your Home Assistant system, select a port, and click save
 
-To enable the OWL Intuition sensor, add the following lines to your `configuration.yaml`:
+To configure the OWL Intuition sensor to receive multicast data add the following lines to your `configuration.yaml`:
+
+```yaml
+# Example configuration.yaml entry
+sensor:
+  - platform: owlintuition
+    host: 192.168.1.1         # Your Home Assistant IP
+    monitored_conditions:
+      - electricity
+```
+
+To configure the OWL Intuition sensor to receive push data add the following lines to your `configuration.yaml`:
 
 ```yaml
 # Example configuration.yaml entry
