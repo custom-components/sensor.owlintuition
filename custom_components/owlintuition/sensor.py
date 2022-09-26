@@ -31,6 +31,8 @@ from homeassistant.const import (
     POWER_WATT,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     TEMP_CELSIUS,
+    CONF_BROADCAST_ADDRESS,
+    CONF_BROADCAST_PORT,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -48,6 +50,8 @@ DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
 POWERED_BY = 'Powered by OWL Intuition'
+DEFAULT_BROADCAST_PORT = 22600
+DEFAULT_BROADCAST_ADDRESS = '224.192.32.19'
 
 SENSOR_ELECTRICITY_BATTERY = 'electricity_battery'
 SENSOR_ELECTRICITY_BATTERY_LVL = 'electricity_battery_lvl'
@@ -139,8 +143,10 @@ HOTWATER_STATE = [  'Standby',                      # 0
 DEFAULT_MONITORED = [ OWLCLASS_ELECTRICITY ]
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_PORT): cv.port,
+    vol.Optional(CONF_PORT): cv.port,
     vol.Optional(CONF_HOST, default='localhost'): cv.string,
+    vol.Optional(CONF_BROADCAST_PORT, default=DEFAULT_BROADCAST_PORT): cv.port,
+    vol.Optional(CONF_BROADCAST_ADDRESS, default=DEFAULT_BROADCAST_ADDRESS): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     vol.Optional(CONF_MODE, default=MODE_MONO):
         vol.In([MODE_MONO, MODE_TRI]),
@@ -169,7 +175,7 @@ async def async_setup_platform(
         hostname = socket.gethostbyname(socket.getfqdn())
 
     # initialize the listener for OWL data
-    owldata = OwlData((hostname, config.get(CONF_PORT)))
+    owldata = OwlData((hostname, config.get(CONF_PORT), config.get(CONF_BROADCAST_ADDRESS), config.get(CONF_BROADCAST_PORT)))
 
     # Ideally an async listener loop as follows would be a better solution,
     # but it crashes HA!
@@ -209,38 +215,41 @@ class OwlData:
     The update() method is instead fully synchronous.
     """
 
-    def __init__(self, localaddr):
+    def __init__(self, binding):
         """Prepare an empty dictionary"""
         self.data = {}
-        self._localaddr = localaddr
-        self._multicast = True
+        self._binding = binding
 
     def update(self):
         """Retrieve the latest data by listening to the periodic UDP message"""
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
             sock.settimeout(SOCK_TIMEOUT)
-            if not self._multicast:
+            if self._binding[1]:
                 try:
-                    sock.bind(self._localaddr)
+                    sock.bind((self._binding[0], self._binding[1]))
                 except socket.error as se:
                     _LOGGER.error("Unable to bind: %s", se)
                     return
             else:
-                MCAST_GRP = '224.192.32.19' 
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 try:
-                    sock.bind((MCAST_GRP, self._localaddr[1]))
+                    sock.bind((self._binding[2], self._binding[3]))
                 except socket.error as se:
                     _LOGGER.error("Unable to bind: %s", se)
                     return
-                sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self._localaddr[0]))
-                sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self._localaddr[0]))
+                sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self._binding[0]))
+                sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(self._binding[2]) + socket.inet_aton(self._binding[0]))
 
             readable, _, _ = select([sock], [], [], SOCK_TIMEOUT)
             if not readable:
-                _LOGGER.warning(
-                    "Timeout (%s seconds) waiting for data on port %s",
-                    SOCK_TIMEOUT, self._localaddr[1])
+                if self._binding[1]:
+                    _LOGGER.warning(
+                        "Timeout (%s seconds) waiting for data on port %s",
+                        SOCK_TIMEOUT, self._binding[1])
+                else:
+                    _LOGGER.warning(
+                        "Timeout (%s seconds) waiting for multicast data on group address %s port %s",
+                        SOCK_TIMEOUT, self._binding[2], self._binding[3])
                 return
 
             data, _ = sock.recvfrom(1024)
