@@ -97,7 +97,7 @@ OWL_CLASSES = [ OWLCLASS_WEATHER,
                 OWLCLASS_RELAYS ]
 
 SENSOR_TYPES = {
-    SENSOR_ELECTRICITY_BATTERY: ['Electricity Battery', None, 'mdi:battery', OWLCLASS_ELECTRICITY, None, SensorStateClass.MEASUREMENT],
+    SENSOR_ELECTRICITY_BATTERY: ['Electricity Battery', None, 'mdi:battery', OWLCLASS_ELECTRICITY, None, None],
     SENSOR_ELECTRICITY_BATTERY_LVL: ['Electricity Battery Level', PERCENTAGE, 'mdi:battery', OWLCLASS_ELECTRICITY, SensorDeviceClass.BATTERY, SensorStateClass.MEASUREMENT],
     SENSOR_ELECTRICITY_RADIO: ['Electricity Radio', SIGNAL_STRENGTH_DECIBELS_MILLIWATT, 'mdi:signal', OWLCLASS_ELECTRICITY, SensorDeviceClass.SIGNAL_STRENGTH, SensorStateClass.MEASUREMENT],
     SENSOR_ELECTRICITY_POWER: ['Electricity Power', POWER_WATT, 'mdi:flash', OWLCLASS_ELECTRICITY, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT],
@@ -107,14 +107,14 @@ SENSOR_TYPES = {
     SENSOR_SOLAR_GENERGY_TODAY: ['Solar Generated Today', ENERGY_KILO_WATT_HOUR, 'mdi:flash', OWLCLASS_SOLAR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING],
     SENSOR_SOLAR_EPOWER: ['Solar Exporting', POWER_WATT, 'mdi:flash', OWLCLASS_SOLAR, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT],
     SENSOR_SOLAR_EENERGY_TODAY: ['Solar Exported Today', ENERGY_KILO_WATT_HOUR, 'mdi:flash', OWLCLASS_SOLAR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING],
-    SENSOR_HOTWATER_BATTERY: ['Hotwater Battery', None, 'mdi:battery', OWLCLASS_HOTWATER, None, SensorStateClass.MEASUREMENT],
+    SENSOR_HOTWATER_BATTERY: ['Hotwater Battery', None, 'mdi:battery', OWLCLASS_HOTWATER, None, None],
     SENSOR_HOTWATER_BATTERY_LVL: ['Hotwater Battery Level', ELECTRIC_POTENTIAL_VOLT, 'mdi:battery', OWLCLASS_HOTWATER, SensorDeviceClass.VOLTAGE, SensorStateClass.MEASUREMENT],
     SENSOR_HOTWATER_RADIO: ['Hotwater Radio', SIGNAL_STRENGTH_DECIBELS_MILLIWATT, 'mdi:signal', OWLCLASS_HOTWATER, SensorDeviceClass.SIGNAL_STRENGTH, SensorStateClass.MEASUREMENT],
     SENSOR_HOTWATER_CURRENT: ['Hotwater Temperature', TEMP_CELSIUS, 'mdi:thermometer', OWLCLASS_HOTWATER, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT],
     SENSOR_HOTWATER_REQUIRED: ['Hotwater Required', TEMP_CELSIUS, 'mdi:thermostat', OWLCLASS_HOTWATER, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT],
     SENSOR_HOTWATER_AMBIENT: ['Hotwater Ambient', TEMP_CELSIUS, 'mdi:thermometer', OWLCLASS_HOTWATER, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT],
     SENSOR_HOTWATER_STATE: ['Hotwater State', '', 'mdi:information-outline', OWLCLASS_HOTWATER, None, SensorStateClass.MEASUREMENT],
-    SENSOR_HEATING_BATTERY: ['Heating Battery', None, 'mdi:battery', OWLCLASS_HEATING, None, SensorStateClass.MEASUREMENT],
+    SENSOR_HEATING_BATTERY: ['Heating Battery', None, 'mdi:battery', OWLCLASS_HEATING, None, None],
     SENSOR_HEATING_BATTERY_LVL: ['Heating Battery Level', ELECTRIC_POTENTIAL_VOLT, 'mdi:battery', OWLCLASS_HEATING, SensorDeviceClass.VOLTAGE, SensorStateClass.MEASUREMENT],
     SENSOR_HEATING_RADIO: ['Heating Radio', SIGNAL_STRENGTH_DECIBELS_MILLIWATT, 'mdi:signal', OWLCLASS_HEATING, SensorDeviceClass.SIGNAL_STRENGTH, SensorStateClass.MEASUREMENT],
     SENSOR_HEATING_CURRENT: ['Heating Temperature', TEMP_CELSIUS, 'mdi:thermometer', OWLCLASS_HEATING, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT],
@@ -226,16 +226,18 @@ class OwlData:
             sock.settimeout(SOCK_TIMEOUT)
             if self._binding[1]:
                 try:
+                    _LOGGER.debug("Binding to: %s on port: %s", self._binding[0], self._binding[1])
                     sock.bind((self._binding[0], self._binding[1]))
                 except socket.error as se:
-                    _LOGGER.error("Unable to bind: %s", se)
+                    _LOGGER.error("Unable to bind to %s on %s error: %s", self._binding[0], self._binding[1], se)
                     return
             else:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 try:
+                    _LOGGER.debug("Multicast Binding to %s on port %s", self._binding[2], self._binding[3])
                     sock.bind((self._binding[2], self._binding[3]))
                 except socket.error as se:
-                    _LOGGER.error("Unable to bind: %s", se)
+                    _LOGGER.error("Unable to bind to %s on %s error: %s", self._binding[2], self._binding[3], se)
                     return
                 sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self._binding[0]))
                 sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(self._binding[2]) + socket.inet_aton(self._binding[0]))
