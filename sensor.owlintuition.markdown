@@ -47,14 +47,16 @@ By default only the electricity sensors will be monitored. The host parameter is
 
 {% linkable_title Configuration variables %}
 
-Currently, this platform supports electric probes and solar generators. For the electric clamps, triphase installations are supported as well and one needs to specify `mode: triphase` in the configuration (the default mode is `monophase`).
-
 This platform exposes multiple sensors according to the monitored conditions. The type of conditions that can be monitored are:
 
 - **electricity**: Electrical energy being used.
 - **solar**: Solar power being generated and used.
 - **heating**: Heating system.
 - **hot_water**: Hot water system.
+
+For the sensors exposing multi-zone data, you can specify the `zone` in the configuration (see below).
+
+For the electric clamps, triphase installations are supported as well and one needs to specify `mode: triphase` in the configuration (the default mode is `monophase`).
 
 {% linkable_title Complete example %}
 
@@ -66,6 +68,7 @@ sensor:
     mode: triphase
     cost_icon: 'mdi:currency-eur'
     cost_unit_of_measurement: EUR
+    zone: '20029D2'
     monitored_conditions:
       - electricity
       - heating
