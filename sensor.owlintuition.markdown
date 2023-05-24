@@ -54,7 +54,7 @@ This platform exposes multiple sensors according to the monitored conditions. Th
 - **heating**: Heating system.
 - **hot_water**: Hot water system.
 
-For the sensors exposing multi-zone data, you can specify the `zone` in the configuration (see below).
+For sensors exposing multi-zone data, you should specify how many `zones` are returned by OWL in the configuration (see below).
 
 For the electric clamps, triphase installations are supported as well and one needs to specify `mode: triphase` in the configuration (the default mode is `monophase`).
 
@@ -68,7 +68,7 @@ sensor:
     mode: triphase
     cost_icon: 'mdi:currency-eur'
     cost_unit_of_measurement: EUR
-    zone: '20029D2'
+    zones: 2
     monitored_conditions:
       - electricity
       - heating

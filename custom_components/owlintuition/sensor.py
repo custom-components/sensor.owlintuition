@@ -150,7 +150,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     vol.Optional(CONF_MODE, default=MODE_MONO):
         vol.In([MODE_MONO, MODE_TRI]),
-    vol.Optional(CONF_ZONE): cv.string,
+    vol.Optional(CONF_ZONES, default=1):
+        vol.All(vol.Coerce(int), vol.Range(min=1))
     vol.Optional(CONF_MONITORED_CONDITIONS, default=DEFAULT_MONITORED):
         vol.All(cv.ensure_list, [vol.In(OWL_CLASSES)]),
     vol.Optional(CONF_COST_ICON, default='mdi:coin'): cv.string,
@@ -192,11 +193,12 @@ async def async_setup_platform(
         config.get(CONF_COST_ICON)
 
     entities = []
-    # Iterate through the possible sensors and add if class is monitored
+    # Iterate through the possible sensors and zones and add if class is monitored
     for sensor in SENSOR_TYPES:
         if SENSOR_TYPES[sensor][3] in config.get(CONF_MONITORED_CONDITIONS):
-            entities.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME), sensor, sensor_zone=config.get(CONF_ZONE))
-            _LOGGER.debug("Adding sensor %s", sensor)
+            for zone in range(config.get(CONF_ZONES)):
+                entities.append(OwlIntuitionSensor(owldata, config.get(CONF_NAME), sensor, zone=zone, zones_count=config.get(CONF_ZONES)))
+                _LOGGER.debug("Adding sensor %s", sensor)
     
     # In case of electricity sensors, handle triphase mode
     if config.get(CONF_MODE) == MODE_TRI and \
@@ -276,17 +278,16 @@ class OwlData:
 class OwlIntuitionSensor(SensorEntity):
     """Implementation of the OWL Intuition Power Meter sensors."""
 
-    def __init__(self, owldata, sensor_name, sensor_type, phase=0, sensor_zone=''):
+    def __init__(self, owldata, sensor_name, sensor_type, phase=0, zone=1, zones_count=1):
         """Set all the config values if they exist and get initial state."""
         self._owldata = owldata
         self._sensor_type = sensor_type
         self._phase = phase
-        self._sensor_zone = sensor_zone
         self._name = f'{sensor_name} {SENSOR_TYPES[sensor_type][0]}'
         if phase > 0:
             self._name += f' P{phase}'
-        if sensor_zone != '':
-            self._name += f' ({sensor_zone})'
+        self._zone = zone
+        self._name_zone_updated = (zones_count == 1)
         self._state = None
         self._attr_attribution = POWERED_BY
         self._attr_native_unit_of_measurement = SENSOR_TYPES[sensor_type][1]
@@ -318,13 +319,13 @@ class OwlIntuitionSensor(SensorEntity):
         xml_ver = xml.attrib.get('ver')
         if (xml.tag == OWLCLASS_HEATING or xml.tag == OWLCLASS_HOTWATER or xml.tag == OWLCLASS_RELAYS):
             # Extract the relevant zone for the multizone sensors
-            found = False
-            for zone in xml.find('zones'):
-                if zone.attrib['id'] == self._sensor_zone:
-                    xml = zone
-                    found = True
-                    break
-            if not found:
+            try:
+                zone = xml.find('zones')[self._zone]
+                if not self._name_zone_updated:
+                    self._name += f" ({zone.attrib['id']})"
+                    self._name_zone_updated = True
+                xml = zone
+            except IndexError:
                 # fallback to the first one
                 xml = xml.find('zones/zone')
 
