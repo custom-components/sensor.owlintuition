@@ -113,7 +113,7 @@ SENSOR_TYPES = {
     SENSOR_HOTWATER_CURRENT: ['Hotwater Temperature', TEMP_CELSIUS, 'mdi:thermometer', OWLCLASS_HOTWATER, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT],
     SENSOR_HOTWATER_REQUIRED: ['Hotwater Required', TEMP_CELSIUS, 'mdi:thermostat', OWLCLASS_HOTWATER, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT],
     SENSOR_HOTWATER_AMBIENT: ['Hotwater Ambient', TEMP_CELSIUS, 'mdi:thermometer', OWLCLASS_HOTWATER, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT],
-    SENSOR_HOTWATER_STATE: ['Hotwater State', '', 'mdi:information-outline', OWLCLASS_HOTWATER, None, None],
+    SENSOR_HOTWATER_STATE: ['Hotwater State', None, 'mdi:information-outline', OWLCLASS_HOTWATER, None, None],
     SENSOR_HEATING_BATTERY: ['Heating Battery', None, 'mdi:battery', OWLCLASS_HEATING, None, None],
     SENSOR_HEATING_BATTERY_LVL: ['Heating Battery Level', ELECTRIC_POTENTIAL_VOLT, 'mdi:battery', OWLCLASS_HEATING, SensorDeviceClass.VOLTAGE, SensorStateClass.MEASUREMENT],
     SENSOR_HEATING_RADIO: ['Heating Radio', SIGNAL_STRENGTH_DECIBELS_MILLIWATT, 'mdi:signal', OWLCLASS_HEATING, SensorDeviceClass.SIGNAL_STRENGTH, SensorStateClass.MEASUREMENT],
