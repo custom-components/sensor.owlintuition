@@ -25,7 +25,6 @@ from homeassistant.const import (
     CONF_MONITORED_CONDITIONS,
     CONF_NAME,
     CONF_PORT,
-    CONF_ZONES,
     ELECTRIC_POTENTIAL_VOLT,
     ENERGY_KILO_WATT_HOUR,
     PERCENTAGE,
@@ -50,6 +49,7 @@ VERSION = '1.6.0'
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
+CONF_ZONES = 'zones'   # this existed in HA at some point...
 POWERED_BY = 'Powered by OWL Intuition'
 DEFAULT_BROADCAST_PORT = 22600
 DEFAULT_BROADCAST_ADDRESS = '224.192.32.19'
@@ -152,7 +152,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_MODE, default=MODE_MONO):
         vol.In([MODE_MONO, MODE_TRI]),
     vol.Optional(CONF_ZONES, default=1):
-        vol.All(vol.Coerce(int), vol.Range(min=1))
+        vol.All(vol.Coerce(int), vol.Range(min=1)),
     vol.Optional(CONF_MONITORED_CONDITIONS, default=DEFAULT_MONITORED):
         vol.All(cv.ensure_list, [vol.In(OWL_CLASSES)]),
     vol.Optional(CONF_COST_ICON, default='mdi:coin'): cv.string,
