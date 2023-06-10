@@ -164,7 +164,6 @@ SOCK_TIMEOUT = 60
 _LOGGER = logging.getLogger(__name__)
 
 
-@asyncio.coroutine
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
