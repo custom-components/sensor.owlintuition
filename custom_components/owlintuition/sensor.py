@@ -49,7 +49,7 @@ VERSION = '1.6.0'
 DEFAULT_NAME = 'OWL Intuition'
 MODE_MONO = 'monophase'
 MODE_TRI = 'triphase'
-CONF_ZONES = 'zones'   # this existed in HA at some point...
+CONF_ZONES = 'zones'   # this existed in HA at some point
 POWERED_BY = 'Powered by OWL Intuition'
 DEFAULT_BROADCAST_PORT = 22600
 DEFAULT_BROADCAST_ADDRESS = '224.192.32.19'
@@ -369,7 +369,6 @@ class OwlIntuitionSensor(SensorEntity):
                 else:
                     self._state = int(float(xml.find('property/current/watts').text))
             else:
-                # TODO: Older xml format not handled yet for tri-phase
                 if xml_ver is None:
                     self._state = int(float(xml.findall('chan')[self._phase-1].
                                             find('curr').text))
@@ -385,7 +384,6 @@ class OwlIntuitionSensor(SensorEntity):
                 else:
                     self._state = round(float(xml.find('property/day/wh').text)/1000, 2)
             else:
-                # TODO: Older xml format not handled yet for tri-phase
                 if xml_ver is None:
                     self._state = round(float(xml.findall('chan')[self._phase-1].
                                               find('day').text)/1000, 2)
@@ -396,7 +394,7 @@ class OwlIntuitionSensor(SensorEntity):
         elif self._sensor_type == SENSOR_ELECTRICITY_COST_TODAY:
             # xml_ver undefined for older version
             if xml_ver is None:
-                self._state = 'N/A'
+                self._state = 0
             else:
                 # the measure comes in cent. of the configured currency
                 self._state = round(float(xml.find('property/day/cost').text)/100, 3)
