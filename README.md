@@ -27,6 +27,7 @@ In particular, if HA seems to not receive any data, a first step is to validate 
 
 ## Changelog:
 
+- 1.7 - 09/01/2023: Fixed sensors [#36] not updating after HA update to 2024.1. Updated sensor types to address deprecation warnings for combinarions of device and state classes [@shortbloke]
 - 1.6 - 05/05/2022: ported Energy support to latest HA core releases [@shortbloke]
 * 1.5 - 20/09/2021: added support for the Energy feature in HA, and included [@shortbloke] a templated sensor for the Grid consumption
 * 1.4 - 05/05/2019: added resources.json and updated code layout following 'the great migration'
