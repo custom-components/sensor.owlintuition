@@ -288,7 +288,7 @@ class OwlIntuitionSensor(SensorEntity):
             self._name += f' P{phase}'
         self._zone = zone
         self._name_zone_updated = (zones_count == 1)
-        self._state = None
+        self._attr_native_value = None
         self._attr_attribution = POWERED_BY
         self._attr_native_unit_of_measurement = SENSOR_TYPES[sensor_type][1]
         self._owl_class = SENSOR_TYPES[sensor_type][3]
@@ -299,11 +299,6 @@ class OwlIntuitionSensor(SensorEntity):
     def _attr_name(self):
         """Return the current name for this sensor."""
         return self._name
-
-    @property
-    def _attr_native_value(self):
-        """Return the current value for this sensor."""
-        return self._state
 
     @property
     def icon(self):
@@ -331,105 +326,105 @@ class OwlIntuitionSensor(SensorEntity):
 
         # Radio sensors
         if self._attr_device_class == SensorDeviceClass.SIGNAL_STRENGTH:
-            self._state = int(xml.find('signal').attrib['rssi'])
+            self._attr_native_value = int(xml.find('signal').attrib['rssi'])
         elif self._sensor_type == SENSOR_ELECTRICITY_BATTERY_LVL:
             # Battery level in % for OWLCLASS_ELECTRICITY, mV for others
-            self._state = int(xml.find("battery").attrib['level'][:-1])
+            self._attr_native_value = int(xml.find("battery").attrib['level'][:-1])
         elif self._sensor_type in [SENSOR_HOTWATER_BATTERY_LVL, SENSOR_HEATING_BATTERY_LVL]:
-            self._state = round(float(xml.find("battery").attrib['level'])/1000, 2)
+            self._attr_native_value = round(float(xml.find("battery").attrib['level'])/1000, 2)
         elif self._sensor_type == SENSOR_ELECTRICITY_BATTERY:
             batt_lvl = int(xml.find("battery").attrib['level'][:-1])
             if batt_lvl > 90:
-                self._state = 'High'
+                self._attr_native_value = 'High'
             elif batt_lvl > 30:
-                self._state = 'Medium'
+                self._attr_native_value = 'Medium'
             elif batt_lvl > 10:
-                self._state = 'Low'
+                self._attr_native_value = 'Low'
             else:
-                self._state = 'Very Low'
+                self._attr_native_value = 'Very Low'
         elif self._sensor_type in [SENSOR_HOTWATER_BATTERY, SENSOR_HEATING_BATTERY]:
             # 2670mV = 66%
             # 2780mV = 76%
             batt_lvl = int(xml.find("battery").attrib['level'])
             if batt_lvl > 2900:
-                self._state = 'High'
+                self._attr_native_value = 'High'
             elif batt_lvl > 2750:
-                self._state = 'Medium'
+                self._attr_native_value = 'Medium'
             elif batt_lvl > 2600:
-                self._state = 'Low'
+                self._attr_native_value = 'Low'
             else:
-                self._state = 'Very Low'
+                self._attr_native_value = 'Very Low'
 
         # Electricity sensors
         elif self._sensor_type == SENSOR_ELECTRICITY_POWER:
             if self._phase == 0:
                 # xml_ver undefined for older version
                 if xml_ver is None:
-                    self._state = int(float(xml.find('chan/curr').text))
+                    self._attr_native_value = int(float(xml.find('chan/curr').text))
                 else:
-                    self._state = int(float(xml.find('property/current/watts').text))
+                    self._attr_native_value = int(float(xml.find('property/current/watts').text))
             else:
                 if xml_ver is None:
-                    self._state = int(float(xml.findall('chan')[self._phase-1].
+                    self._attr_native_value = int(float(xml.findall('chan')[self._phase-1].
                                             find('curr').text))
                 else:
-                    self._state = int(float(xml.find('channels').
+                    self._attr_native_value = int(float(xml.find('channels').
                                             findall('chan')[self._phase-1].
                                             find('curr').text))
         elif self._sensor_type == SENSOR_ELECTRICITY_ENERGY_TODAY:
             if self._phase == 0:
                 # xml_ver undefined for older version
                 if xml_ver is None:
-                    self._state = round(float(xml.find('chan/day').text)/1000,2)
+                    self._attr_native_value = round(float(xml.find('chan/day').text)/1000,2)
                 else:
-                    self._state = round(float(xml.find('property/day/wh').text)/1000, 2)
+                    self._attr_native_value = round(float(xml.find('property/day/wh').text)/1000, 2)
             else:
                 if xml_ver is None:
-                    self._state = round(float(xml.findall('chan')[self._phase-1].
+                    self._attr_native_value = round(float(xml.findall('chan')[self._phase-1].
                                               find('day').text)/1000, 2)
                 else:
-                    self._state = round(float(xml.find('channels').
+                    self._attr_native_value = round(float(xml.find('channels').
                                               findall('chan')[self._phase-1].
                                               find('day').text)/1000, 2)
         elif self._sensor_type == SENSOR_ELECTRICITY_COST_TODAY:
             # xml_ver undefined for older version
             if xml_ver is None:
-                self._state = 0
+                self._attr_native_value = 0
             else:
                 # the measure comes in cent. of the configured currency
-                self._state = round(float(xml.find('property/day/cost').text)/100, 3)
+                self._attr_native_value = round(float(xml.find('property/day/cost').text)/100, 3)
 
         # Solar sensors
         elif self._sensor_type == SENSOR_SOLAR_GPOWER:
-            self._state = int(float(xml.find('current/generating').text))
+            self._attr_native_value = int(float(xml.find('current/generating').text))
         elif self._sensor_type == SENSOR_SOLAR_EPOWER:
-            self._state = int(float(xml.find('current/exporting').text))
+            self._attr_native_value = int(float(xml.find('current/exporting').text))
         elif self._sensor_type == SENSOR_SOLAR_GENERGY_TODAY:
-            self._state = round(float(xml.find('day/generated').text)/1000, 2)
+            self._attr_native_value = round(float(xml.find('day/generated').text)/1000, 2)
         elif self._sensor_type == SENSOR_SOLAR_EENERGY_TODAY:
-            self._state = round(float(xml.find('day/exported').text)/1000, 2)
+            self._attr_native_value = round(float(xml.find('day/exported').text)/1000, 2)
 	  		
         # Hot water sensors
         if self._sensor_type == SENSOR_HOTWATER_CURRENT:
-            self._state = round(float(xml.find('temperature/current').text),1)
+            self._attr_native_value = round(float(xml.find('temperature/current').text),1)
         elif self._sensor_type == SENSOR_HOTWATER_REQUIRED:
-            self._state = float(xml.find('temperature/required').text)
+            self._attr_native_value = float(xml.find('temperature/required').text)
         elif self._sensor_type == SENSOR_HOTWATER_AMBIENT:
-            self._state = float(xml.find('temperature/ambient').text)
+            self._attr_native_value = float(xml.find('temperature/ambient').text)
         elif self._sensor_type == SENSOR_HOTWATER_STATE:
             # Heating state reported in version 2 and up
             if xml_ver is not None:
-                self._state = HOTWATER_STATE[int(xml.find('temperature').attrib['state'])]
+                self._attr_native_value = HOTWATER_STATE[int(xml.find('temperature').attrib['state'])]
 
         # Heating Sensors
         elif self._sensor_type == SENSOR_HEATING_CURRENT:
-            self._state = round(float(xml.find('temperature/current').text),1)
+            self._attr_native_value = round(float(xml.find('temperature/current').text),1)
         elif self._sensor_type == SENSOR_HEATING_REQUIRED:
-            self._state = float(xml.find('temperature/required').text)
+            self._attr_native_value = float(xml.find('temperature/required').text)
         elif self._sensor_type == SENSOR_HEATING_STATE:
             # Heating state reported in version 2 and up
             if xml_ver is not None:
-                self._state = HEATING_STATE[int(xml.find('temperature').attrib['state'])]
+                self._attr_native_value = HEATING_STATE[int(xml.find('temperature').attrib['state'])]
 
 
 class OwlStateUpdater(asyncio.DatagramProtocol):
