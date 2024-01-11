@@ -288,7 +288,6 @@ class OwlIntuitionSensor(SensorEntity):
             self._name += f' P{phase}'
         self._zone = zone
         self._name_zone_updated = (zones_count == 1)
-        self._attr_native_value = None  # `_state` is now a cached property by HA, so we use this instead (see #36
         self._attr_attribution = POWERED_BY
         self._attr_native_unit_of_measurement = SENSOR_TYPES[sensor_type][1]
         self._owl_class = SENSOR_TYPES[sensor_type][3]
