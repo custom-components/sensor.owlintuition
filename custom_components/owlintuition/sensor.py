@@ -323,7 +323,7 @@ class OwlIntuitionSensor(SensorEntity):
                 # fallback to the first one
                 xml = xml.find('zones/zone')
 
-       # Update the state of the current sensor: we use _attr_native_value and not _state because of #36
+        # Update the state of the current sensor: we use _attr_native_value and not _state because of #36
         # Radio sensors
         if self._attr_device_class == SensorDeviceClass.SIGNAL_STRENGTH:
             self._attr_native_value = int(xml.find('signal').attrib['rssi'])
