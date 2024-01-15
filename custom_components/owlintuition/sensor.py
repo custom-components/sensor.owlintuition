@@ -290,14 +290,10 @@ class OwlIntuitionSensor(SensorEntity):
         self._name_zone_updated = (zones_count == 1)
         self._attr_attribution = POWERED_BY
         self._attr_native_unit_of_measurement = SENSOR_TYPES[sensor_type][1]
+        self._attr_icon = SENSOR_TYPES[sensor_type][2]
         self._owl_class = SENSOR_TYPES[sensor_type][3]
         self._attr_device_class = SENSOR_TYPES[sensor_type][4]
         self._attr_state_class = SENSOR_TYPES[sensor_type][5]
-
-    @property
-    def icon(self):
-        """Return the icon for this entity."""
-        return SENSOR_TYPES[self._sensor_type][2]
 
     def update(self):
         """Retrieve the latest value for this sensor."""
