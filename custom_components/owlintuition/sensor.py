@@ -283,9 +283,9 @@ class OwlIntuitionSensor(SensorEntity):
         self._owldata = owldata
         self._sensor_type = sensor_type
         self._phase = phase
-        self._name = f'{sensor_name} {SENSOR_TYPES[sensor_type][0]}'
+        self._attr_name = f'{sensor_name} {SENSOR_TYPES[sensor_type][0]}'
         if phase > 0:
-            self._name += f' P{phase}'
+            self._attr_name += f' P{phase}'
         self._zone = zone
         self._name_zone_updated = (zones_count == 1)
         self._attr_attribution = POWERED_BY
@@ -293,11 +293,6 @@ class OwlIntuitionSensor(SensorEntity):
         self._owl_class = SENSOR_TYPES[sensor_type][3]
         self._attr_device_class = SENSOR_TYPES[sensor_type][4]
         self._attr_state_class = SENSOR_TYPES[sensor_type][5]
-
-    @property
-    def _attr_name(self):
-        """Return the current name for this sensor."""
-        return self._name
 
     @property
     def icon(self):
