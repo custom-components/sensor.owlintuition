@@ -11,7 +11,7 @@ template:
     - platform: state
       entity_id: sensor.owl_intuition_electricity_power
     sensor:
-      - name: "Owl Grid Energy Now"
+      - name: "Owl Grid Power Now"
         unit_of_measurement: "W"
         state_class: measurement
         device_class: power
