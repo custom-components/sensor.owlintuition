@@ -103,7 +103,7 @@ SENSOR_TYPES = {
     SENSOR_ELECTRICITY_RADIO: ['Electricity Radio', SIGNAL_STRENGTH_DECIBELS_MILLIWATT, 'mdi:signal', OWLCLASS_ELECTRICITY, SensorDeviceClass.SIGNAL_STRENGTH, SensorStateClass.MEASUREMENT],
     SENSOR_ELECTRICITY_POWER: ['Electricity Power', UnitOfPower.WATT, 'mdi:flash', OWLCLASS_ELECTRICITY, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT],
     SENSOR_ELECTRICITY_ENERGY_TODAY: ['Electricity Today', UnitOfEnergy.KILO_WATT_HOUR, 'mdi:flash', OWLCLASS_ELECTRICITY, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING],
-    SENSOR_ELECTRICITY_COST_TODAY: ['Cost Today', None, 'mdi:coin', OWLCLASS_ELECTRICITY, SensorDeviceClass.MONETARY, SensorStateClass.TOTAL_INCREASING],
+    SENSOR_ELECTRICITY_COST_TODAY: ['Cost Today', None, 'mdi:coin', OWLCLASS_ELECTRICITY, SensorDeviceClass.MONETARY, SensorStateClass.TOTAL],
     SENSOR_SOLAR_GPOWER: ['Solar Generating', UnitOfPower.WATT, 'mdi:flash', OWLCLASS_SOLAR, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT],
     SENSOR_SOLAR_GENERGY_TODAY: ['Solar Generated Today', UnitOfEnergy.KILO_WATT_HOUR, 'mdi:flash', OWLCLASS_SOLAR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING],
     SENSOR_SOLAR_EPOWER: ['Solar Exporting', UnitOfPower.WATT, 'mdi:flash', OWLCLASS_SOLAR, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT],
