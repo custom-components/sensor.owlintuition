@@ -2,7 +2,19 @@
 
 A set of sensors to integrate the OWL Intuition devices network
 
-## Installation (for Linux or Hassio systems)
+## Installation Methods
+There are two methods for installation:
+
+### HACS (Home Assistant Community Store)
+
+1. Search for "Owl Intuition" in the Home Assistant Community Store
+2. Click the three vertical dots to the right of the search results and click "Download"
+3. Confirm that you wish to download the latest build from the popup.
+4. Restart Home Assistant by going to Home Assistant Settings, where there woll be a "Repair" required.
+5. For full configuration see the [configuration](#configuration&use) section below.
+
+
+### Manual Installation for Linux or Hassio systems
 
 1. On the Home Assistant server, install the Terminal&SSH Add-On
 2. In a terminal do the following to download the files, and put them in the right place and clean up afterwards
@@ -16,8 +28,11 @@ mv owlintuition /config/custom_components
 cd /config
 rm -rf temp_dir
 ```
-3. Follow the documentation for using the integration - documentation in Home Assistant format available at [sensor.owlintuition.markdown](./sensor.owlintuition.markdown). (Note you may have to restart the HA server to get this to work)
-4. (Optional) If using the Home Energy feature (introduced in Home Assistant 2021.8.0) and using the Owl Intuition in a Type 1 configuration, then you may want to create a grid power sensor by copying the [package](https://www.home-assistant.io/docs/configuration/packages/) file [owl_intuition.yaml](custom_components/owlintuition/owl_intuition.yaml) in to your `packages` directory. This will create sensors for the current grid usage and the running total for the day.
+
+## Configuration & Use
+
+1. Follow the documentation for using the integration - documentation in Home Assistant format available at [sensor.owlintuition.markdown](./sensor.owlintuition.markdown). (Note you may have to restart the HA server to get this to work)
+2. (Optional) If using the Home Energy feature (introduced in Home Assistant 2021.8.0) and using the Owl Intuition in a Type 1 configuration, then you may want to create a grid power sensor by copying the [package](https://www.home-assistant.io/docs/configuration/packages/) file [owl_intuition.yaml](custom_components/owlintuition/owl_intuition.yaml) in to your `packages` directory. This will create sensors for the current grid usage and the running total for the day.
 
 ## Troubleshooting
 
