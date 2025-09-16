@@ -1,6 +1,6 @@
 # OWL Intuition
 
-A set of sensors to integrate the OWL Intuition devices network
+A set of sensors to integrate the OWL Intuition network receivers with Home Assistant.
 
 ## Installation Methods
 There are two methods for installation:
@@ -33,10 +33,6 @@ rm -rf temp_dir
 
 1. Follow the documentation for using the integration - documentation in Home Assistant format available at [sensor.owlintuition.markdown](./sensor.owlintuition.markdown). (Note you may have to restart the HA server to get this to work)
 2. (Optional) If using the Home Energy feature (introduced in Home Assistant 2021.8.0) and using the Owl Intuition in a Type 1 configuration, then you may want to create a grid power sensor by copying the [package](https://www.home-assistant.io/docs/configuration/packages/) file [owl_intuition.yaml](custom_components/owlintuition/owl_intuition.yaml) in to your `packages` directory. This will create sensors for the current grid usage and the running total for the day.
-
-## Troubleshooting
-
-Some discussion and troubleshooting about this integration took place in the [Home Assistant forum](https://community.home-assistant.io/t/owl-intuition-pv-home-assistant/).
 
 In particular, if HA seems to not receive any data, a first step is to validate that OWL is effectively sending out UDP updates to the configured port, and that the data can be received from the HA end. The [snippet here](test/testowl.py) may help to check that (edit it to suit your needs).
 
